@@ -10,10 +10,10 @@ st.set_page_config(page_title='BTC · ETH Signal', page_icon='₿', layout='wide
 st.markdown('''<style>
 .stApp{background:linear-gradient(135deg,#f7f9fc,#eef3f9 55%,#f8fafc);color:#172033}
 .block-container{padding-top:1.3rem;max-width:1400px}
-.hero{padding:22px 26px;border:1px solid #26334d;border-radius:22px;background:#ffffff;box-shadow:0 10px 30px rgba(35,55,85,.10);margin-bottom:18px}
-.hero h1{margin:0;font-size:2.1rem}.muted{color:#60708a}.pill{display:inline-block;padding:7px 12px;border-radius:999px;background:#eef3f9;border:1px solid #d5deea;margin-right:6px}
-[data-testid="stMetric"]{background:#ffffff;border:1px solid #d9e1ec;padding:14px;border-radius:18px}
-.signal{font-size:1.7rem;font-weight:800;padding:14px 18px;border-radius:16px;text-align:center;background:#ffffff;border:1px solid #ccd7e6}
+.hero{padding:12px 18px;border:1px solid #26334d;border-radius:22px;background:#ffffff;box-shadow:0 10px 30px rgba(35,55,85,.10);margin-bottom:8px}
+.hero h1{margin:0;font-size:1.65rem}.muted{color:#60708a}.pill{display:inline-block;padding:7px 12px;border-radius:999px;background:#eef3f9;border:1px solid #d5deea;margin-right:6px}
+[data-testid="stMetric"]{background:#ffffff;border:1px solid #d9e1ec;padding:8px;border-radius:14px}
+.signal{font-size:1.35rem;font-weight:800;padding:8px 12px;border-radius:16px;text-align:center;background:#ffffff;border:1px solid #ccd7e6}
 [data-testid="stMetricValue"]{font-size:clamp(1.45rem,4vw,2.25rem);white-space:nowrap}
 div[data-testid="stSegmentedControl"] button{min-height:46px}
 @media (max-width: 768px){
@@ -98,7 +98,7 @@ try:
     buys=view[(view.sig.str.contains('매수')) & (~view.prevsig.fillna('').str.contains('매수'))]
     sells=view[(view.sig.str.contains('매도')) & (~view.prevsig.fillna('').str.contains('매도'))]
 
-    fig=make_subplots(rows=4,cols=1,shared_xaxes=True,row_heights=[.58,.14,.14,.14],vertical_spacing=.035)
+    fig=make_subplots(rows=4,cols=1,shared_xaxes=True,row_heights=[.58,.12,.15,.15],vertical_spacing=.035)
     fig.add_trace(go.Candlestick(x=view.time,open=view.open,high=view.high,low=view.low,close=view.close,name='Price'),row=1,col=1)
     fig.add_trace(go.Scatter(x=view.time,y=view.EMA5,name='EMA5',line=dict(width=1.2)),row=1,col=1)
     fig.add_trace(go.Scatter(x=view.time,y=view.EMA20,name='EMA20',line=dict(width=1.5)),row=1,col=1)
@@ -112,25 +112,25 @@ try:
     fig.add_trace(go.Bar(x=view.time,y=hist,name='MACD Hist'),row=4,col=1)
     fig.add_trace(go.Scatter(x=view.time,y=view.MACD,name='MACD',line=dict(width=1.4)),row=4,col=1)
     fig.add_trace(go.Scatter(x=view.time,y=view.MACDsig,name='Signal',line=dict(width=1.2)),row=4,col=1)
-    fig.update_layout(height=820,template='plotly_white',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='#ffffff',xaxis_rangeslider_visible=False,margin=dict(l=10,r=10,t=35,b=10),legend_orientation='h')
+    fig.update_layout(height=480,template='plotly_white',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='#ffffff',xaxis_rangeslider_visible=False,margin=dict(l=10,r=10,t=35,b=10),legend_orientation='h')
     fig.update_xaxes(title_text=None); fig.update_yaxes(title_text=None)
     st.plotly_chart(fig,use_container_width=True)
 
     left,right=st.columns([1.25,1])
     with left:
-        st.markdown('### 최근 매매 알림')
-        events=pd.concat([buys.assign(kind='매수'),sells.assign(kind='매도')]).sort_values('time',ascending=False).head(8)
+        st.markdown('#### 최근 매매 알림')
+        events=pd.concat([buys.assign(kind='매수'),sells.assign(kind='매도')]).sort_values('time',ascending=False).head(4)
         if len(events):
             for _,ev in events.iterrows():
                 icon='🟢' if ev.kind=='매수' else '🔴'
-                st.markdown(f"{icon} **{ev.kind}** · {ev.time:%m/%d %H:%M} · ₩{ev.close:,.0f} · 신뢰도 {abs(int(ev.score))}/4")
+                st.caption(f"{icon} {ev.kind} · {ev.time:%m/%d %H:%M} · ₩{ev.close:,.0f} · {abs(int(ev.score))}/4")
         else: st.caption('선택 기간에 새 매매 신호가 없습니다.')
     with right:
-        st.markdown('### 알림 설정')
+        st.markdown('#### 알림 설정')
         st.toggle('매수 신호 알림',value=True)
         st.toggle('매도 신호 알림',value=True)
-        st.toggle('강력 신호만 강조',value=False)
-        st.caption('현재 앱 내부 표시 설정입니다. 앱을 닫은 상태의 푸시 알림은 별도 연동이 필요합니다.')
+        st.toggle('강력 신호만',value=False)
+        st.caption('앱 내부 알림')
 
     hi=view.high.tail(min(72,len(view))).max(); lo=view.low.tail(min(72,len(view))).min()
     st.markdown(f"**주요 가격 구간** · 단기 저항 ₩{hi:,.0f} · 현재가 ₩{last.close:,.0f} · 단기 지지 ₩{lo:,.0f}")
