@@ -95,20 +95,29 @@ try:
     ab=d_alert[(d_alert.sig.str.contains('매수')) & (~d_alert.prevsig.fillna('').str.contains('매수'))].assign(kind='매수')
     ase=d_alert[(d_alert.sig.str.contains('매도')) & (~d_alert.prevsig.fillna('').str.contains('매도'))].assign(kind='매도')
     events=pd.concat([ab,ase]).sort_values('time',ascending=False).head(12)
+    if 'alert_page' not in st.session_state: st.session_state.alert_page=False
     if st.button('🔔 매매 알림창 열기',use_container_width=True):
-        @st.dialog('🔔 BTC · ETH 매매 알림')
-        def alert_dialog():
-            st.caption(f'{market} · 최근 신호')
-            if len(events):
-                for _,ev in events.iterrows():
-                    icon='🟢' if ev.kind=='매수' else '🔴'
-                    st.markdown(f"{icon} **{ev.kind}** &nbsp; {ev.time:%m/%d %H:%M} &nbsp; ₩{ev.close:,.0f} &nbsp; 신뢰도 {abs(int(ev.score))}/4")
-            else: st.info('최근 새 매매 신호가 없습니다.')
-            st.divider()
-            st.toggle('매수 신호 알림',value=True,key='buy_alert')
-            st.toggle('매도 신호 알림',value=True,key='sell_alert')
-            st.toggle('강력 신호만',value=False,key='strong_alert')
-        alert_dialog()
+        st.session_state.alert_page=True
+        st.rerun()
+    if st.session_state.alert_page:
+        st.markdown("## 🔔 BTC · ETH 매매 알림")
+        if st.button('← 메인 차트로 돌아가기',use_container_width=True):
+            st.session_state.alert_page=False
+            st.rerun()
+        st.caption(f'{market} · 최근 매매 신호')
+        if len(events):
+            for _,ev in events.iterrows():
+                icon='🟢' if ev.kind=='매수' else '🔴'
+                st.markdown(f"### {icon} {ev.kind}  ·  {ev.time:%m/%d %H:%M}")
+                st.markdown(f"**₩{ev.close:,.0f}** &nbsp;&nbsp; 신뢰도 **{abs(int(ev.score))}/4**")
+                st.divider()
+        else:
+            st.info('최근 새 매매 신호가 없습니다.')
+        st.markdown("### 알림 설정")
+        st.toggle('매수 신호 알림',value=True,key='buy_alert')
+        st.toggle('매도 신호 알림',value=True,key='sell_alert')
+        st.toggle('강력 신호만',value=False,key='strong_alert')
+        st.stop()
 
     days={'1일':1,'1주':7,'1개월':30}[period]
     view=d[d.time >= d.time.max()-pd.Timedelta(days=days)].copy()
