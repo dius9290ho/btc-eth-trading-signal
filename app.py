@@ -119,21 +119,24 @@ try:
     fig.update_xaxes(title_text=None); fig.update_yaxes(title_text=None)
     st.plotly_chart(fig,use_container_width=True)
 
-    left,right=st.columns([1.25,1])
-    with left:
-        st.markdown('#### 최근 매매 알림')
-        events=pd.concat([buys.assign(kind='매수'),sells.assign(kind='매도')]).sort_values('time',ascending=False).head(4)
-        if len(events):
-            for _,ev in events.iterrows():
-                icon='🟢' if ev.kind=='매수' else '🔴'
-                st.caption(f"{icon} {ev.kind} · {ev.time:%m/%d %H:%M} · ₩{ev.close:,.0f} · {abs(int(ev.score))}/4")
-        else: st.caption('선택 기간에 새 매매 신호가 없습니다.')
-    with right:
-        st.markdown('#### 알림 설정')
-        st.toggle('매수 신호 알림',value=True)
-        st.toggle('매도 신호 알림',value=True)
-        st.toggle('강력 신호만',value=False)
-        st.caption('앱 내부 알림')
+    events=pd.concat([buys.assign(kind='매수'),sells.assign(kind='매도')]).sort_values('time',ascending=False).head(12)
+    if st.button('🔔 매매 알림창 열기',use_container_width=True):
+        @st.dialog('🔔 BTC · ETH 매매 알림')
+        def alert_dialog():
+            st.caption(f'{market} · {period} · {unit}분봉')
+            if len(events):
+                for _,ev in events.iterrows():
+                    icon='🟢' if ev.kind=='매수' else '🔴'
+                    st.markdown(f"{icon} **{ev.kind}** &nbsp; {ev.time:%m/%d %H:%M} &nbsp; ₩{ev.close:,.0f} &nbsp; 신뢰도 {abs(int(ev.score))}/4")
+            else:
+                st.info('선택 기간에 새 매매 신호가 없습니다.')
+            st.divider()
+            st.markdown('**알림 설정**')
+            st.toggle('매수 신호 알림',value=True,key='buy_alert')
+            st.toggle('매도 신호 알림',value=True,key='sell_alert')
+            st.toggle('강력 신호만',value=False,key='strong_alert')
+            st.caption('현재는 앱 내부 알림창입니다.')
+        alert_dialog()
 
     hi=view.high.tail(min(72,len(view))).max(); lo=view.low.tail(min(72,len(view))).min()
     st.markdown(f"**주요 가격 구간** · 단기 저항 ₩{hi:,.0f} · 현재가 ₩{last.close:,.0f} · 단기 지지 ₩{lo:,.0f}")
