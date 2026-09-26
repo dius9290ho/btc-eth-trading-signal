@@ -100,20 +100,30 @@ try:
         st.session_state.alert_page=True
         st.rerun()
     if st.session_state.alert_page:
-        st.markdown("## 🔔 BTC · ETH 매매 알림")
+        st.markdown("### 🔔 BTC · ETH 매매 알림")
         if st.button('← 메인 차트로 돌아가기',use_container_width=True):
             st.session_state.alert_page=False
             st.rerun()
         st.caption(f'{market} · 최근 매매 신호')
         if len(events):
+            rows=[]
             for _,ev in events.iterrows():
-                icon='🟢' if ev.kind=='매수' else '🔴'
-                st.markdown(f"### {icon} {ev.kind}  ·  {ev.time:%m/%d %H:%M}")
-                st.markdown(f"**₩{ev.close:,.0f}** &nbsp;&nbsp; 신뢰도 **{abs(int(ev.score))}/4**")
-                st.divider()
+                rows.append({
+                    '구분': '🟢 매수' if ev.kind=='매수' else '🔴 매도',
+                    '발생시간': ev.time.strftime('%m/%d %H:%M'),
+                    '가격': f"₩{ev.close:,.0f}",
+                    '신뢰도': f"{abs(int(ev.score))}/4"
+                })
+            st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True,
+                column_config={
+                    '구분': st.column_config.TextColumn('신호',width='small'),
+                    '발생시간': st.column_config.TextColumn('발생시간',width='medium'),
+                    '가격': st.column_config.TextColumn('가격',width='medium'),
+                    '신뢰도': st.column_config.TextColumn('신뢰도',width='small')
+                })
         else:
             st.info('최근 새 매매 신호가 없습니다.')
-        st.markdown("### 알림 설정")
+        st.markdown("#### 알림 설정")
         st.toggle('매수 신호 알림',value=True,key='buy_alert')
         st.toggle('매도 신호 알림',value=True,key='sell_alert')
         st.toggle('강력 신호만',value=False,key='strong_alert')
