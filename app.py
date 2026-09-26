@@ -8,12 +8,12 @@ from datetime import datetime
 
 st.set_page_config(page_title='BTC · ETH Signal', page_icon='₿', layout='wide')
 st.markdown('''<style>
-.stApp{background:linear-gradient(135deg,#070b14,#0d1424 55%,#10192b);color:#eef4ff}
+.stApp{background:linear-gradient(135deg,#f7f9fc,#eef3f9 55%,#f8fafc);color:#172033}
 .block-container{padding-top:1.3rem;max-width:1400px}
-.hero{padding:22px 26px;border:1px solid #26334d;border-radius:22px;background:rgba(17,25,43,.88);box-shadow:0 16px 45px rgba(0,0,0,.28);margin-bottom:18px}
-.hero h1{margin:0;font-size:2.1rem}.muted{color:#93a4c3}.pill{display:inline-block;padding:7px 12px;border-radius:999px;background:#18243a;border:1px solid #2c3d5c;margin-right:6px}
-[data-testid="stMetric"]{background:#111a2b;border:1px solid #263550;padding:14px;border-radius:18px}
-.signal{font-size:1.7rem;font-weight:800;padding:14px 18px;border-radius:16px;text-align:center;background:#111a2b;border:1px solid #30415f}
+.hero{padding:22px 26px;border:1px solid #26334d;border-radius:22px;background:#ffffff;box-shadow:0 10px 30px rgba(35,55,85,.10);margin-bottom:18px}
+.hero h1{margin:0;font-size:2.1rem}.muted{color:#60708a}.pill{display:inline-block;padding:7px 12px;border-radius:999px;background:#eef3f9;border:1px solid #d5deea;margin-right:6px}
+[data-testid="stMetric"]{background:#ffffff;border:1px solid #d9e1ec;padding:14px;border-radius:18px}
+.signal{font-size:1.7rem;font-weight:800;padding:14px 18px;border-radius:16px;text-align:center;background:#ffffff;border:1px solid #ccd7e6}
 [data-testid="stMetricValue"]{font-size:clamp(1.45rem,4vw,2.25rem);white-space:nowrap}
 div[data-testid="stSegmentedControl"] button{min-height:46px}
 @media (max-width: 768px){
@@ -83,7 +83,7 @@ try:
     fig.add_trace(go.Scatter(x=d.time,y=d.EMA50,name='EMA50',line=dict(width=1.5)),row=1,col=1)
     fig.add_trace(go.Scatter(x=d.time,y=d.RSI,name='RSI',line=dict(width=1.5)),row=2,col=1)
     fig.add_hline(y=70,line_dash='dot',row=2,col=1); fig.add_hline(y=30,line_dash='dot',row=2,col=1)
-    fig.update_layout(height=560,template='plotly_dark',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',xaxis_rangeslider_visible=False,margin=dict(l=10,r=10,t=35,b=10),legend_orientation='h')
+    fig.update_layout(height=560,template='plotly_white',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='#ffffff',xaxis_rangeslider_visible=False,margin=dict(l=10,r=10,t=35,b=10),legend_orientation='h')
     fig.update_xaxes(title_text=None); fig.update_yaxes(title_text=None)
     st.plotly_chart(fig,use_container_width=True)
     st.markdown('**신호 판단 근거:** ' + ' · '.join(reasons))
