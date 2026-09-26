@@ -96,14 +96,17 @@ try:
     ase=d_alert[(d_alert.sig.str.contains('매도')) & (~d_alert.prevsig.fillna('').str.contains('매도'))].assign(kind='매도')
     events=pd.concat([ab,ase]).sort_values('time',ascending=False).head(12)
     if 'alert_page' not in st.session_state: st.session_state.alert_page=False
-    if st.button('🔔 매매 알림창 열기',use_container_width=True):
-        st.session_state.alert_page=True
-        st.rerun()
-    if st.session_state.alert_page:
-        st.markdown("### 🔔 BTC · ETH 매매 알림")
-        if st.button('← 메인 차트로 돌아가기',use_container_width=True):
+    nav1,nav2=st.columns(2)
+    with nav1:
+        if st.button('📊 종목 분석',use_container_width=True,type='primary' if not st.session_state.alert_page else 'secondary'):
             st.session_state.alert_page=False
             st.rerun()
+    with nav2:
+        if st.button('🔔 매매 알림',use_container_width=True,type='primary' if st.session_state.alert_page else 'secondary'):
+            st.session_state.alert_page=True
+            st.rerun()
+    if st.session_state.alert_page:
+        st.markdown("### 🔔 BTC · ETH 매매 알림")
         st.caption(f'{market} · 최근 매매 신호')
         if len(events):
             rows=[]
