@@ -4,7 +4,7 @@ import numpy as np
 import requests
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from datetime import datetime
+from datetime import datetime, timedelta
 
 st.set_page_config(page_title='BTC · ETH Signal', page_icon='₿', layout='wide')
 st.markdown('''<style>
@@ -44,10 +44,11 @@ def upbit_candles(market, unit, count=200):
 
 def indicators(d):
     x=d.copy(); c=x.close
-    x['EMA20']=c.ewm(span=20,adjust=False).mean(); x['EMA50']=c.ewm(span=50,adjust=False).mean()
+    x['EMA5']=c.ewm(span=5,adjust=False).mean(); x['EMA20']=c.ewm(span=20,adjust=False).mean(); x['EMA50']=c.ewm(span=50,adjust=False).mean()
     delta=c.diff(); gain=delta.clip(lower=0).ewm(alpha=1/14,adjust=False).mean(); loss=(-delta.clip(upper=0)).ewm(alpha=1/14,adjust=False).mean()
     rs=gain/loss.replace(0,np.nan); x['RSI']=100-(100/(1+rs))
     e12=c.ewm(span=12,adjust=False).mean(); e26=c.ewm(span=26,adjust=False).mean(); x['MACD']=e12-e26; x['MACDsig']=x.MACD.ewm(span=9,adjust=False).mean()
+    x['VOLMA20']=x.volume.rolling(20).mean()
     return x
 
 def signal(row):
@@ -63,9 +64,19 @@ def signal(row):
     label='강력매수' if score>=3 else '매수' if score>=1 else '강력매도' if score<=-3 else '매도' if score<=-1 else '관망'
     return label,score,reasons
 
+def signal_series(x):
+    out=[]
+    for _,r in x.iterrows():
+        if pd.isna(r.RSI) or pd.isna(r.MACDsig): out.append(('관망',0))
+        else:
+            lab,sc,_=signal(r); out.append((lab,sc))
+    return out
+
 c1,c2,c3=st.columns([1.2,1,1])
 with c1: coin=st.segmented_control('코인',['Bitcoin (BTC)','Ethereum (ETH)'],default='Bitcoin (BTC)')
-with c2: unit=st.selectbox('캔들 간격',[15,30,60,240],index=2,format_func=lambda x:f'{x}분')
+with c2:
+    period=st.segmented_control('차트 기간',['1일','1주','1개월'],default='1주')
+    unit=st.selectbox('캔들 간격',[15,30,60,240],index=2,format_func=lambda x:f'{x}분')
 with c3: st.caption('시세 데이터: Upbit 공개 API · 자동주문 없음')
 market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
 try:
@@ -76,16 +87,53 @@ try:
     b.metric('RSI (14)',f'{last.RSI:.1f}')
     c.metric('MACD',f'{last.MACD:,.0f}')
     dcol.metric('Signal score',f'{score:+d} / 4')
-    st.markdown(f"<div class='signal'>현재 종합 신호 · {lab}</div>",unsafe_allow_html=True)
-    fig=make_subplots(rows=2,cols=1,shared_xaxes=True,row_heights=[.72,.28],vertical_spacing=.06)
-    fig.add_trace(go.Candlestick(x=d.time,open=d.open,high=d.high,low=d.low,close=d.close,name='Price'),row=1,col=1)
-    fig.add_trace(go.Scatter(x=d.time,y=d.EMA20,name='EMA20',line=dict(width=1.5)),row=1,col=1)
-    fig.add_trace(go.Scatter(x=d.time,y=d.EMA50,name='EMA50',line=dict(width=1.5)),row=1,col=1)
-    fig.add_trace(go.Scatter(x=d.time,y=d.RSI,name='RSI',line=dict(width=1.5)),row=2,col=1)
-    fig.add_hline(y=70,line_dash='dot',row=2,col=1); fig.add_hline(y=30,line_dash='dot',row=2,col=1)
-    fig.update_layout(height=560,template='plotly_white',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='#ffffff',xaxis_rangeslider_visible=False,margin=dict(l=10,r=10,t=35,b=10),legend_orientation='h')
+    sig_color='#e53935' if '매도' in lab else '#00a86b' if '매수' in lab else '#60708a'
+    st.markdown(f"<div class='signal'>현재 종합 신호 · <span style='color:{sig_color}'>{lab}</span> &nbsp; | &nbsp; 신뢰도 {abs(score)}/4</div>",unsafe_allow_html=True)
+
+    days={'1일':1,'1주':7,'1개월':30}[period]
+    view=d[d.time >= d.time.max()-pd.Timedelta(days=days)].copy()
+    if len(view)<20: view=d.tail(min(len(d),120)).copy()
+    ss=signal_series(view); view['sig']=[z[0] for z in ss]; view['score']=[z[1] for z in ss]
+    view['prevsig']=view.sig.shift(1)
+    buys=view[(view.sig.str.contains('매수')) & (~view.prevsig.fillna('').str.contains('매수'))]
+    sells=view[(view.sig.str.contains('매도')) & (~view.prevsig.fillna('').str.contains('매도'))]
+
+    fig=make_subplots(rows=4,cols=1,shared_xaxes=True,row_heights=[.58,.14,.14,.14],vertical_spacing=.035)
+    fig.add_trace(go.Candlestick(x=view.time,open=view.open,high=view.high,low=view.low,close=view.close,name='Price'),row=1,col=1)
+    fig.add_trace(go.Scatter(x=view.time,y=view.EMA5,name='EMA5',line=dict(width=1.2)),row=1,col=1)
+    fig.add_trace(go.Scatter(x=view.time,y=view.EMA20,name='EMA20',line=dict(width=1.5)),row=1,col=1)
+    fig.add_trace(go.Scatter(x=view.time,y=view.EMA50,name='EMA50',line=dict(width=1.5)),row=1,col=1)
+    fig.add_trace(go.Scatter(x=buys.time,y=buys.low*.995,mode='markers+text',text=['매수']*len(buys),textposition='bottom center',marker=dict(symbol='triangle-up',size=13),name='매수'),row=1,col=1)
+    fig.add_trace(go.Scatter(x=sells.time,y=sells.high*1.005,mode='markers+text',text=['매도']*len(sells),textposition='top center',marker=dict(symbol='triangle-down',size=13),name='매도'),row=1,col=1)
+    fig.add_trace(go.Bar(x=view.time,y=view.volume,name='거래량'),row=2,col=1)
+    fig.add_trace(go.Scatter(x=view.time,y=view.RSI,name='RSI',line=dict(width=1.5)),row=3,col=1)
+    fig.add_hline(y=70,line_dash='dot',row=3,col=1); fig.add_hline(y=30,line_dash='dot',row=3,col=1)
+    hist=view.MACD-view.MACDsig
+    fig.add_trace(go.Bar(x=view.time,y=hist,name='MACD Hist'),row=4,col=1)
+    fig.add_trace(go.Scatter(x=view.time,y=view.MACD,name='MACD',line=dict(width=1.4)),row=4,col=1)
+    fig.add_trace(go.Scatter(x=view.time,y=view.MACDsig,name='Signal',line=dict(width=1.2)),row=4,col=1)
+    fig.update_layout(height=820,template='plotly_white',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='#ffffff',xaxis_rangeslider_visible=False,margin=dict(l=10,r=10,t=35,b=10),legend_orientation='h')
     fig.update_xaxes(title_text=None); fig.update_yaxes(title_text=None)
     st.plotly_chart(fig,use_container_width=True)
+
+    left,right=st.columns([1.25,1])
+    with left:
+        st.markdown('### 최근 매매 알림')
+        events=pd.concat([buys.assign(kind='매수'),sells.assign(kind='매도')]).sort_values('time',ascending=False).head(8)
+        if len(events):
+            for _,ev in events.iterrows():
+                icon='🟢' if ev.kind=='매수' else '🔴'
+                st.markdown(f"{icon} **{ev.kind}** · {ev.time:%m/%d %H:%M} · ₩{ev.close:,.0f} · 신뢰도 {abs(int(ev.score))}/4")
+        else: st.caption('선택 기간에 새 매매 신호가 없습니다.')
+    with right:
+        st.markdown('### 알림 설정')
+        st.toggle('매수 신호 알림',value=True)
+        st.toggle('매도 신호 알림',value=True)
+        st.toggle('강력 신호만 강조',value=False)
+        st.caption('현재 앱 내부 표시 설정입니다. 앱을 닫은 상태의 푸시 알림은 별도 연동이 필요합니다.')
+
+    hi=view.high.tail(min(72,len(view))).max(); lo=view.low.tail(min(72,len(view))).min()
+    st.markdown(f"**주요 가격 구간** · 단기 저항 ₩{hi:,.0f} · 현재가 ₩{last.close:,.0f} · 단기 지지 ₩{lo:,.0f}")
     st.markdown('**신호 판단 근거:** ' + ' · '.join(reasons))
     st.caption(f'마지막 업데이트 캔들: {last.time:%Y-%m-%d %H:%M} KST · 본 앱의 신호는 투자 판단 보조용이며 수익을 보장하지 않습니다.')
 except Exception as e:
