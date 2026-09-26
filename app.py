@@ -11,7 +11,7 @@ st.markdown('''<style>
 .stApp{background:linear-gradient(135deg,#f7f9fc,#eef3f9 55%,#f8fafc);color:#172033}
 .block-container{padding-top:1.3rem;max-width:1400px}
 .hero{padding:12px 18px;border:1px solid #26334d;border-radius:22px;background:#ffffff;box-shadow:0 10px 30px rgba(35,55,85,.10);margin-bottom:8px}
-.hero h1{margin:0;font-size:1.65rem}.muted{color:#60708a}.pill{display:inline-block;padding:7px 12px;border-radius:999px;background:#eef3f9;border:1px solid #d5deea;margin-right:6px}
+.hero h1{margin:0;font-size:1.45rem}.muted{color:#60708a}.pill{display:inline-block;padding:7px 12px;border-radius:999px;background:#eef3f9;border:1px solid #d5deea;margin-right:6px}
 [data-testid="stMetric"]{background:#ffffff;border:1px solid #d9e1ec;padding:8px;border-radius:14px}
 .signal{font-size:1.35rem;font-weight:800;padding:8px 12px;border-radius:16px;text-align:center;background:#ffffff;border:1px solid #ccd7e6}
 [data-testid="stMetricValue"]{font-size:clamp(1.45rem,4vw,2.25rem);white-space:nowrap}
@@ -20,13 +20,13 @@ div[data-testid="stSegmentedControl"] button{min-height:46px}
  .block-container{padding:.7rem .75rem 2rem}
  .hero{padding:16px 16px;border-radius:18px;margin-bottom:12px}
  .hero h1{font-size:1.65rem;line-height:1.2}
- .hero .muted{font-size:.9rem;margin-top:8px}
+ .hero .muted{display:none}
  [data-testid="stHorizontalBlock"]{gap:.55rem}
  [data-testid="stMetric"]{padding:10px;border-radius:14px;min-width:0}
  [data-testid="stMetricLabel"]{font-size:.78rem}
  [data-testid="stMetricValue"]{font-size:1.35rem!important}
  [data-testid="stMetricDelta"]{font-size:.75rem}
- .signal{font-size:1.35rem;padding:12px 10px}
+ .signal{font-size:1.1rem;padding:8px 8px}
  div[data-testid="stSegmentedControl"] button{font-size:.88rem;padding-left:.55rem;padding-right:.55rem}
 }
 </style>''', unsafe_allow_html=True)
@@ -83,7 +83,7 @@ try:
     d=indicators(upbit_candles(market,unit)); last=d.iloc[-1]; prev=d.iloc[-2]
     lab,score,reasons=signal(last); pct=(last.close/prev.close-1)*100
     a,b,c,dcol=st.columns(4)
-    a.metric('현재가',f'₩{last.close:,.0f}',f'{pct:+.2f}%')
+    a.metric('현재가',f'₩{last.close/1_000_000:.2f}M' if last.close>=10_000_000 else f'₩{last.close:,.0f}',f'{pct:+.2f}%')
     b.metric('RSI (14)',f'{last.RSI:.1f}')
     c.metric('MACD',f'{last.MACD:,.0f}')
     dcol.metric('Signal score',f'{score:+d} / 4')
@@ -103,16 +103,19 @@ try:
     fig.add_trace(go.Scatter(x=view.time,y=view.EMA5,name='EMA5',line=dict(width=1.2)),row=1,col=1)
     fig.add_trace(go.Scatter(x=view.time,y=view.EMA20,name='EMA20',line=dict(width=1.5)),row=1,col=1)
     fig.add_trace(go.Scatter(x=view.time,y=view.EMA50,name='EMA50',line=dict(width=1.5)),row=1,col=1)
-    fig.add_trace(go.Scatter(x=buys.time,y=buys.low*.995,mode='markers+text',text=['매수']*len(buys),textposition='bottom center',marker=dict(symbol='triangle-up',size=13),name='매수'),row=1,col=1)
-    fig.add_trace(go.Scatter(x=sells.time,y=sells.high*1.005,mode='markers+text',text=['매도']*len(sells),textposition='top center',marker=dict(symbol='triangle-down',size=13),name='매도'),row=1,col=1)
-    fig.add_trace(go.Bar(x=view.time,y=view.volume,name='거래량'),row=2,col=1)
+    fig.add_trace(go.Scatter(x=buys.time,y=buys.low*.995,mode='markers',marker=dict(symbol='triangle-up',size=10,color='#16a36a'),name='매수'),row=1,col=1)
+    fig.add_trace(go.Scatter(x=sells.time,y=sells.high*1.005,mode='markers',marker=dict(symbol='triangle-down',size=10,color='#ef5350'),name='매도'),row=1,col=1)
+    fig.add_trace(go.Bar(x=view.time,y=view.volume,name='거래량',marker_color='#b8c6dc'),row=2,col=1)
     fig.add_trace(go.Scatter(x=view.time,y=view.RSI,name='RSI',line=dict(width=1.5)),row=3,col=1)
     fig.add_hline(y=70,line_dash='dot',row=3,col=1); fig.add_hline(y=30,line_dash='dot',row=3,col=1)
     hist=view.MACD-view.MACDsig
-    fig.add_trace(go.Bar(x=view.time,y=hist,name='MACD Hist'),row=4,col=1)
+    fig.add_trace(go.Bar(x=view.time,y=hist,name='MACD Hist',marker_color='#b8c6dc'),row=4,col=1)
     fig.add_trace(go.Scatter(x=view.time,y=view.MACD,name='MACD',line=dict(width=1.4)),row=4,col=1)
     fig.add_trace(go.Scatter(x=view.time,y=view.MACDsig,name='Signal',line=dict(width=1.2)),row=4,col=1)
-    fig.update_layout(height=480,template='plotly_white',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='#ffffff',xaxis_rangeslider_visible=False,margin=dict(l=10,r=10,t=35,b=10),legend_orientation='h')
+    fig.update_layout(height=410,template='plotly_white',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='#ffffff',xaxis_rangeslider_visible=False,margin=dict(l=5,r=5,t=8,b=5),showlegend=False,hovermode='x unified')
+    fig.update_xaxes(showgrid=False,zeroline=False)
+    fig.update_yaxes(gridcolor='#edf1f6',zeroline=False,tickfont=dict(size=10))
+    fig.update_annotations(font=dict(size=9))
     fig.update_xaxes(title_text=None); fig.update_yaxes(title_text=None)
     st.plotly_chart(fig,use_container_width=True)
 
