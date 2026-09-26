@@ -14,6 +14,21 @@ st.markdown('''<style>
 .hero h1{margin:0;font-size:2.1rem}.muted{color:#93a4c3}.pill{display:inline-block;padding:7px 12px;border-radius:999px;background:#18243a;border:1px solid #2c3d5c;margin-right:6px}
 [data-testid="stMetric"]{background:#111a2b;border:1px solid #263550;padding:14px;border-radius:18px}
 .signal{font-size:1.7rem;font-weight:800;padding:14px 18px;border-radius:16px;text-align:center;background:#111a2b;border:1px solid #30415f}
+[data-testid="stMetricValue"]{font-size:clamp(1.45rem,4vw,2.25rem);white-space:nowrap}
+div[data-testid="stSegmentedControl"] button{min-height:46px}
+@media (max-width: 768px){
+ .block-container{padding:.7rem .75rem 2rem}
+ .hero{padding:16px 16px;border-radius:18px;margin-bottom:12px}
+ .hero h1{font-size:1.65rem;line-height:1.2}
+ .hero .muted{font-size:.9rem;margin-top:8px}
+ [data-testid="stHorizontalBlock"]{gap:.55rem}
+ [data-testid="stMetric"]{padding:10px;border-radius:14px;min-width:0}
+ [data-testid="stMetricLabel"]{font-size:.78rem}
+ [data-testid="stMetricValue"]{font-size:1.35rem!important}
+ [data-testid="stMetricDelta"]{font-size:.75rem}
+ .signal{font-size:1.35rem;padding:12px 10px}
+ div[data-testid="stSegmentedControl"] button{font-size:.88rem;padding-left:.55rem;padding-right:.55rem}
+}
 </style>''', unsafe_allow_html=True)
 
 st.markdown("<div class='hero'><h1>₿ BTC · ETH Trading Signal</h1><div class='muted'>가격 추세와 기술지표를 한 화면에서 확인하는 분석용 대시보드</div></div>", unsafe_allow_html=True)
@@ -68,7 +83,7 @@ try:
     fig.add_trace(go.Scatter(x=d.time,y=d.EMA50,name='EMA50',line=dict(width=1.5)),row=1,col=1)
     fig.add_trace(go.Scatter(x=d.time,y=d.RSI,name='RSI',line=dict(width=1.5)),row=2,col=1)
     fig.add_hline(y=70,line_dash='dot',row=2,col=1); fig.add_hline(y=30,line_dash='dot',row=2,col=1)
-    fig.update_layout(height=650,template='plotly_dark',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',xaxis_rangeslider_visible=False,margin=dict(l=10,r=10,t=35,b=10),legend_orientation='h')
+    fig.update_layout(height=560,template='plotly_dark',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)',xaxis_rangeslider_visible=False,margin=dict(l=10,r=10,t=35,b=10),legend_orientation='h')
     fig.update_xaxes(title_text=None); fig.update_yaxes(title_text=None)
     st.plotly_chart(fig,use_container_width=True)
     st.markdown('**신호 판단 근거:** ' + ' · '.join(reasons))
