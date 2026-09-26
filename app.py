@@ -94,6 +94,10 @@ with c2:
     period=st.segmented_control('차트 기간',['1일','1주','1개월'],default='1주')
     unit=st.selectbox('캔들 간격',[15,30,60,240],index=2,format_func=lambda x:f'{x}분')
 with c3: st.caption('시세 데이터: Upbit 공개 API · 자동주문 없음')
+if coin is None:
+    coin='Bitcoin (BTC)'
+if period is None:
+    period='1주'
 market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
 try:
     raw=upbit_candles(market,unit,200); d=indicators(raw); last=d.iloc[-1]; prev=d.iloc[-2]
