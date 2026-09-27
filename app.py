@@ -97,7 +97,9 @@ def trade_engine(x, p=None, fee=0.0005, slip=0.0003):
         elif in_pos:
             peak=max(peak,r.close); atrv=r.ATR
             stop=entry-p['stop']*atrv; trail=peak-p['trail']*atrv; take=entry+p['take']*atrv
-            if bool(r.exit_ok) or r.close<=max(stop,trail) or r.close>=take:
+            held_hours=(r.time-z.iloc[entry_i].time).total_seconds()/3600
+            # 매수 후 최소 24시간 보유: 24시간이 지나기 전에는 어떤 매도 신호도 실행하지 않음
+            if held_hours>=24 and (bool(r.exit_ok) or r.close<=max(stop,trail) or r.close>=take):
                 out=r.close*(1-slip); net=(out/entry-1)-2*fee
                 trades.append({'entry_time':z.iloc[entry_i].time,'entry':entry,'exit_time':r.time,'exit':out,'return':net})
                 in_pos=False; sig[i]='매도'
@@ -225,7 +227,7 @@ try:
     hi=view.high.tail(min(72,len(view))).max(); lo=view.low.tail(min(72,len(view))).min()
     st.markdown(f"**주요 가격 구간** · 단기 저항 ₩{hi:,.0f} · 현재가 ₩{last.close:,.0f} · 단기 지지 ₩{lo:,.0f}")
     st.markdown('**신호 판단 근거:** ' + ' · '.join(reasons))
-    st.caption(f"복합전략: EMA · MACD · RSI · ADX · 거래량 · Bollinger · Stochastic | 전체 {len(d)}캔들: {bt['n']}회 · 승률 {bt['win']:.1f}% · 누적 {bt['total']:+.2f}% · PF {bt['pf']:.2f}")
+    st.caption(f"복합전략: EMA · MACD · RSI · ADX · 거래량 · Bollinger · Stochastic · 최소보유 24시간 | 전체 {len(d)}캔들: {bt['n']}회 · 승률 {bt['win']:.1f}% · 누적 {bt['total']:+.2f}% · PF {bt['pf']:.2f}")
     st.caption(f"후반 30% OOS 검증(최적화 미사용 구간): {oos['n']}회 · 승률 {oos['win']:.1f}% · 누적 {oos['total']:+.2f}% · PF {oos['pf']:.2f} | 수수료·슬리피지 반영")
     st.caption(f'마지막 업데이트 캔들: {last.time:%Y-%m-%d %H:%M} KST · 본 앱의 신호는 투자 판단 보조용이며 수익을 보장하지 않습니다.')
 except Exception as e:
