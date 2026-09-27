@@ -76,7 +76,7 @@ def indicators(d):
     return x
 
 def trade_engine(x, p=None, fee=0.0005, slip=0.0003):
-    if p is None: p={'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':4}
+    if p is None: p={'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':4,'hold':6}
     z=x.copy()
     tests=pd.DataFrame(index=z.index)
     tests['trend']=(z.close>z.EMA100)&(z.EMA20>z.EMA50)
@@ -99,7 +99,7 @@ def trade_engine(x, p=None, fee=0.0005, slip=0.0003):
             stop=entry-p['stop']*atrv; trail=peak-p['trail']*atrv; take=entry+p['take']*atrv
             held_hours=(r.time-z.iloc[entry_i].time).total_seconds()/3600
             # 매수 후 최소 24시간 보유: 24시간이 지나기 전에는 어떤 매도 신호도 실행하지 않음
-            if held_hours>=24 and (bool(r.exit_ok) or r.close<=max(stop,trail) or r.close>=take):
+            if held_hours>=p.get('hold',6) and (bool(r.exit_ok) or r.close<=max(stop,trail) or r.close>=take):
                 out=r.close*(1-slip); net=(out/entry-1)-2*fee
                 trades.append({'entry_time':z.iloc[entry_i].time,'entry':entry,'exit_time':r.time,'exit':out,'return':net})
                 in_pos=False; sig[i]='매도'
@@ -109,15 +109,16 @@ def trade_engine(x, p=None, fee=0.0005, slip=0.0003):
 def optimize_strategy(d):
     split=max(180,int(len(d)*0.70)); train=d.iloc[:split]
     candidates=[]
-    for score in [4,5,6]:
-      for adx in [15,20,25]:
-       for stop,trail,take in [(1.2,1.8,2.5),(1.5,2.0,3.0),(1.8,2.5,4.0)]:
-        p={'rsi_lo':48,'rsi_hi':70,'adx':adx,'vol':0.9,'stop':stop,'trail':trail,'take':take,'score':score}
-        _,t=trade_engine(train,p); s=stats(t)
-        if s['n']>=3:
-            objective=s['total'] + min(s['pf'],5)*1.5 + s['win']*.03
+    for score in [3,4,5,6]:
+      for adx in [12,18,24,30]:
+       for hold in [0,3,6,12,24,36]:
+        for stop,trail,take in [(1.0,1.5,2.0),(1.2,1.8,2.5),(1.5,2.0,3.0),(1.8,2.5,4.0),(2.2,3.0,5.0)]:
+         p={'rsi_lo':48,'rsi_hi':72,'adx':adx,'vol':0.85,'stop':stop,'trail':trail,'take':take,'score':score,'hold':hold}
+         _,t=trade_engine(train,p); s=stats(t)
+         if s['n']>=3:
+            objective=s['total']
             candidates.append((objective,p))
-    p=max(candidates,key=lambda q:q[0])[1] if candidates else {'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':4}
+    p=max(candidates,key=lambda q:q[0])[1] if candidates else {'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':4,'hold':6}
     eng,trades=trade_engine(d,p)
     test=d.iloc[split:].copy(); _,test_trades=trade_engine(test,p)
     return p,eng,trades,stats(test_trades),split
@@ -146,7 +147,7 @@ try:
     params,eng,trades,oos,split=optimize_strategy(d); bt=stats(trades)
     active=(eng.sig.iloc[-1]=='매수') or (len(eng)>1 and '매수' in eng.sig.iloc[max(0,len(eng)-12):].values and '매도' not in eng.sig.iloc[max(0,len(eng)-12):].values)
     lab='매수' if eng.sig.iloc[-1]=='매수' else '매도' if eng.sig.iloc[-1]=='매도' else '관망'
-    score=int(eng.signal_score.iloc[-1]); reasons=[f'복합지표 점수 {score}/7',f"ADX 기준 {params['adx']}",f"진입 기준 {params['score']}/7"]
+    score=int(eng.signal_score.iloc[-1]); reasons=[f'복합지표 점수 {score}/7',f"ADX 기준 {params['adx']}",f"진입 {params['score']}/7 · 최소보유 {params['hold']}시간"]
     pct=(last.close/prev.close-1)*100
     a,b,c,dcol=st.columns(4)
     a.metric('현재가',f'₩{last.close/1_000_000:.2f}M' if last.close>=10_000_000 else f'₩{last.close:,.0f}',f'{pct:+.2f}%')
@@ -227,7 +228,7 @@ try:
     hi=view.high.tail(min(72,len(view))).max(); lo=view.low.tail(min(72,len(view))).min()
     st.markdown(f"**주요 가격 구간** · 단기 저항 ₩{hi:,.0f} · 현재가 ₩{last.close:,.0f} · 단기 지지 ₩{lo:,.0f}")
     st.markdown('**신호 판단 근거:** ' + ' · '.join(reasons))
-    st.caption(f"복합전략: EMA · MACD · RSI · ADX · 거래량 · Bollinger · Stochastic · 최소보유 24시간 | 전체 {len(d)}캔들: {bt['n']}회 · 승률 {bt['win']:.1f}% · 누적 {bt['total']:+.2f}% · PF {bt['pf']:.2f}")
+    st.caption(f"복합전략: EMA · MACD · RSI · ADX · 거래량 · Bollinger · Stochastic · 보유기간 자동최적화 | 전체 {len(d)}캔들: {bt['n']}회 · 승률 {bt['win']:.1f}% · 누적 {bt['total']:+.2f}% · PF {bt['pf']:.2f}")
     st.caption(f"후반 30% OOS 검증(최적화 미사용 구간): {oos['n']}회 · 승률 {oos['win']:.1f}% · 누적 {oos['total']:+.2f}% · PF {oos['pf']:.2f} | 수수료·슬리피지 반영")
     st.caption(f'마지막 업데이트 캔들: {last.time:%Y-%m-%d %H:%M} KST · 본 앱의 신호는 투자 판단 보조용이며 수익을 보장하지 않습니다.')
 except Exception as e:
