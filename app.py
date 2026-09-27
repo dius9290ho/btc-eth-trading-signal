@@ -107,17 +107,25 @@ def trade_engine(x, p=None, fee=0.0005, slip=0.0003):
     return z,pd.DataFrame(trades)
 
 def optimize_strategy(d):
+    # 모바일에서도 빠르게 끝나도록 후보군을 제한한 경량 최적화
     split=max(180,int(len(d)*0.70)); train=d.iloc[:split]
     candidates=[]
-    for score in [3,4,5,6]:
-      for adx in [12,18,24,30]:
-       for hold in [0,3,6,12,24,36]:
-        for stop,trail,take in [(1.0,1.5,2.0),(1.2,1.8,2.5),(1.5,2.0,3.0),(1.8,2.5,4.0),(2.2,3.0,5.0)]:
-         p={'rsi_lo':48,'rsi_hi':72,'adx':adx,'vol':0.85,'stop':stop,'trail':trail,'take':take,'score':score,'hold':hold}
-         _,t=trade_engine(train,p); s=stats(t)
-         if s['n']>=3:
-            objective=s['total']
-            candidates.append((objective,p))
+    base=[
+      {'score':3,'adx':12,'hold':0,'stop':1.2,'trail':1.8,'take':2.5},
+      {'score':4,'adx':18,'hold':3,'stop':1.2,'trail':1.8,'take':2.5},
+      {'score':4,'adx':18,'hold':6,'stop':1.5,'trail':2.0,'take':3.0},
+      {'score':4,'adx':24,'hold':12,'stop':1.5,'trail':2.0,'take':3.0},
+      {'score':5,'adx':18,'hold':6,'stop':1.8,'trail':2.5,'take':4.0},
+      {'score':5,'adx':24,'hold':12,'stop':1.8,'trail':2.5,'take':4.0},
+      {'score':5,'adx':30,'hold':24,'stop':2.2,'trail':3.0,'take':5.0},
+      {'score':6,'adx':24,'hold':24,'stop':1.8,'trail':2.5,'take':4.0},
+      {'score':4,'adx':12,'hold':24,'stop':2.2,'trail':3.0,'take':5.0},
+      {'score':3,'adx':18,'hold':36,'stop':2.2,'trail':3.0,'take':5.0},
+    ]
+    for q in base:
+        p={'rsi_lo':48,'rsi_hi':72,'vol':0.85,**q}
+        _,t=trade_engine(train,p); s=stats(t)
+        if s['n']>=2: candidates.append((s['total'],p))
     p=max(candidates,key=lambda q:q[0])[1] if candidates else {'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':4,'hold':6}
     eng,trades=trade_engine(d,p)
     test=d.iloc[split:].copy(); _,test_trades=trade_engine(test,p)
@@ -142,7 +150,7 @@ if period is None:
     period='1주'
 market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
 try:
-    need={'1일':300,'1주':500,'1개월':1000}[period]
+    need={'1일':220,'1주':300,'1개월':750}[period]
     raw=upbit_candles(market,unit,need); d=indicators(raw); last=d.iloc[-1]; prev=d.iloc[-2]
     params,eng,trades,oos,split=optimize_strategy(d); bt=stats(trades)
     active=(eng.sig.iloc[-1]=='매수') or (len(eng)>1 and '매수' in eng.sig.iloc[max(0,len(eng)-12):].values and '매도' not in eng.sig.iloc[max(0,len(eng)-12):].values)
