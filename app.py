@@ -87,7 +87,15 @@ def trade_engine(x, p=None, fee=0.0005, slip=0.0003):
     tests['macd']=(z.MACD>z.MACDsig)
     tests['rsi']=z.RSI.between(p['rsi_lo'],p['rsi_hi'])
     tests['adx']=z.ADX>=p['adx']
-    tests['dmi']=z.DMIbull
+    # DMI: +DI 상향교차 후 일정 시간 동안만 유효한 상승 신호로 인정
+    cross_age=pd.Series(np.nan,index=z.index,dtype=float)
+    last_cross=-10**9
+    for j in range(len(z)):
+        if bool(z.DMIcrossUp.iloc[j]): last_cross=j
+        cross_age.iloc[j]=j-last_cross
+    bars=max(1,int(np.ceil(p.get('dmi_hours',12)*60/p.get('unit',60))))
+    z['DMIrecent']=z.DMIbull & (cross_age<=bars)
+    tests['dmi']=z.DMIrecent
     tests['volume']=z.volume>=z.VOLMA20*p['vol']
     tests['bb']=z.close>=z.BBmid
     tests['stoch']=z.STOCHK.between(35,85)
@@ -111,27 +119,26 @@ def trade_engine(x, p=None, fee=0.0005, slip=0.0003):
     z['sig']=sig
     return z,pd.DataFrame(trades)
 
-def optimize_strategy(d):
-    # 모바일에서도 빠르게 끝나도록 후보군을 제한한 경량 최적화
+def optimize_strategy(d, unit=60):
+    # DMI cross 유효시간까지 포함한 경량 최적화
     split=max(180,int(len(d)*0.70)); train=d.iloc[:split]
     candidates=[]
     base=[
-      {'score':7,'adx':12,'hold':0,'stop':1.2,'trail':1.8,'take':2.5},
-      {'score':7,'adx':18,'hold':3,'stop':1.2,'trail':1.8,'take':2.5},
-      {'score':7,'adx':18,'hold':6,'stop':1.5,'trail':2.0,'take':3.0},
-      {'score':7,'adx':24,'hold':12,'stop':1.5,'trail':2.0,'take':3.0},
+      {'score':5,'adx':12,'hold':0,'stop':1.2,'trail':1.8,'take':2.5},
+      {'score':5,'adx':18,'hold':3,'stop':1.5,'trail':2.0,'take':3.0},
+      {'score':6,'adx':18,'hold':6,'stop':1.5,'trail':2.0,'take':3.0},
+      {'score':6,'adx':24,'hold':12,'stop':1.8,'trail':2.5,'take':4.0},
       {'score':7,'adx':18,'hold':6,'stop':1.8,'trail':2.5,'take':4.0},
-      {'score':7,'adx':24,'hold':12,'stop':1.8,'trail':2.5,'take':4.0},
-      {'score':7,'adx':30,'hold':24,'stop':2.2,'trail':3.0,'take':5.0},
-      {'score':7,'adx':24,'hold':24,'stop':1.8,'trail':2.5,'take':4.0},
-      {'score':7,'adx':12,'hold':24,'stop':2.2,'trail':3.0,'take':5.0},
-      {'score':7,'adx':18,'hold':36,'stop':2.2,'trail':3.0,'take':5.0},
     ]
-    for q in base:
-        p={'rsi_lo':48,'rsi_hi':72,'vol':0.85,**q}
+    for dmi_hours in [3,6,12,24]:
+      for q in base:
+        p={'rsi_lo':48,'rsi_hi':72,'vol':0.85,'dmi_hours':dmi_hours,'unit':unit,**q}
         _,t=trade_engine(train,p); s=stats(t)
-        if s['n']>=2: candidates.append((s['total'],p))
-    p=max(candidates,key=lambda q:q[0])[1] if candidates else {'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':7,'hold':6}
+        if s['n']>=2:
+            # 수익률 우선, 지나치게 적은 거래의 우연한 최고값은 PF로 보조 평가
+            objective=s['total'] + min(s['pf'],4)*0.5
+            candidates.append((objective,p))
+    p=max(candidates,key=lambda q:q[0])[1] if candidates else {'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':6,'hold':6,'dmi_hours':12,'unit':unit}
     eng,trades=trade_engine(d,p)
     test=d.iloc[split:].copy(); _,test_trades=trade_engine(test,p)
     return p,eng,trades,stats(test_trades),split
@@ -157,10 +164,10 @@ market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
 try:
     need={'1일':220,'1주':300,'1개월':750}[period]
     raw=upbit_candles(market,unit,need); d=indicators(raw); last=d.iloc[-1]; prev=d.iloc[-2]
-    params,eng,trades,oos,split=optimize_strategy(d); bt=stats(trades)
+    params,eng,trades,oos,split=optimize_strategy(d,unit); bt=stats(trades)
     active=(eng.sig.iloc[-1]=='매수') or (len(eng)>1 and '매수' in eng.sig.iloc[max(0,len(eng)-12):].values and '매도' not in eng.sig.iloc[max(0,len(eng)-12):].values)
     lab='매수' if eng.sig.iloc[-1]=='매수' else '매도' if eng.sig.iloc[-1]=='매도' else '관망'
-    score=int(eng.signal_score.iloc[-1]); reasons=[f'복합지표 점수 {score}/7',f"ADX 기준 {params['adx']}",f"진입 {params['score']}/8 · DMI(+DI/-DI) · 최소보유 {params['hold']}시간"]
+    score=int(eng.signal_score.iloc[-1]); reasons=[f'복합지표 점수 {score}/7',f"ADX 기준 {params['adx']}",f"진입 {params['score']}/8 · DMI Cross {params['dmi_hours']}h · 최소보유 {params['hold']}시간"]
     pct=(last.close/prev.close-1)*100
     a,b,c,dcol=st.columns(4)
     a.metric('현재가',f'₩{last.close/1_000_000:.2f}M' if last.close>=10_000_000 else f'₩{last.close:,.0f}',f'{pct:+.2f}%')
@@ -241,7 +248,7 @@ try:
     hi=view.high.tail(min(72,len(view))).max(); lo=view.low.tail(min(72,len(view))).min()
     st.markdown(f"**주요 가격 구간** · 단기 저항 ₩{hi:,.0f} · 현재가 ₩{last.close:,.0f} · 단기 지지 ₩{lo:,.0f}")
     st.markdown('**신호 판단 근거:** ' + ' · '.join(reasons))
-    st.caption(f"복합전략: EMA · MACD · RSI · ADX · DMI Cross · 거래량 · Bollinger · Stochastic · 보유기간 자동최적화 | 전체 {len(d)}캔들: {bt['n']}회 · 승률 {bt['win']:.1f}% · 누적 {bt['total']:+.2f}% · PF {bt['pf']:.2f}")
+    st.caption(f"복합전략: EMA · MACD · RSI · ADX · DMI Cross 유효시간 최적화 · 거래량 · Bollinger · Stochastic · 보유기간 자동최적화 | 전체 {len(d)}캔들: {bt['n']}회 · 승률 {bt['win']:.1f}% · 누적 {bt['total']:+.2f}% · PF {bt['pf']:.2f}")
     st.caption(f"후반 30% OOS 검증(최적화 미사용 구간): {oos['n']}회 · 승률 {oos['win']:.1f}% · 누적 {oos['total']:+.2f}% · PF {oos['pf']:.2f} | 수수료·슬리피지 반영")
     st.caption(f'마지막 업데이트 캔들: {last.time:%Y-%m-%d %H:%M} KST · 본 앱의 신호는 투자 판단 보조용이며 수익을 보장하지 않습니다.')
 except Exception as e:
