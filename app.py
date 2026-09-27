@@ -72,23 +72,28 @@ def indicators(d):
     atr=x['ATR'].replace(0,np.nan)
     pdi=100*pd.Series(plus,index=x.index).ewm(alpha=1/14,adjust=False).mean()/atr
     mdi=100*pd.Series(minus,index=x.index).ewm(alpha=1/14,adjust=False).mean()/atr
+    x['PDI']=pdi; x['MDI']=mdi
     x['ADX']=(100*(pdi-mdi).abs()/(pdi+mdi).replace(0,np.nan)).ewm(alpha=1/14,adjust=False).mean()
+    x['DMIbull']=(x.PDI>x.MDI)
+    x['DMIcrossUp']=(x.PDI>x.MDI)&(x.PDI.shift(1)<=x.MDI.shift(1))
+    x['DMIcrossDown']=(x.PDI<x.MDI)&(x.PDI.shift(1)>=x.MDI.shift(1))
     return x
 
 def trade_engine(x, p=None, fee=0.0005, slip=0.0003):
-    if p is None: p={'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':4,'hold':6}
+    if p is None: p={'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':7,'hold':6}
     z=x.copy()
     tests=pd.DataFrame(index=z.index)
     tests['trend']=(z.close>z.EMA100)&(z.EMA20>z.EMA50)
     tests['macd']=(z.MACD>z.MACDsig)
     tests['rsi']=z.RSI.between(p['rsi_lo'],p['rsi_hi'])
     tests['adx']=z.ADX>=p['adx']
+    tests['dmi']=z.DMIbull
     tests['volume']=z.volume>=z.VOLMA20*p['vol']
     tests['bb']=z.close>=z.BBmid
     tests['stoch']=z.STOCHK.between(35,85)
     z['signal_score']=tests.sum(axis=1)
     z['entry_ok']=z['signal_score']>=p['score']
-    z['exit_ok']=(z.close<z.EMA20)|(z.MACD<z.MACDsig)|(z.RSI>76)|(z.STOCHK>92)
+    z['exit_ok']=(z.close<z.EMA20)|(z.MACD<z.MACDsig)|(z.RSI>76)|(z.STOCHK>92)|z.DMIcrossDown
     sig=['관망']*len(z); trades=[]; in_pos=False; entry=0; entry_i=None; peak=0
     for i in range(1,len(z)):
         r=z.iloc[i]
@@ -111,22 +116,22 @@ def optimize_strategy(d):
     split=max(180,int(len(d)*0.70)); train=d.iloc[:split]
     candidates=[]
     base=[
-      {'score':3,'adx':12,'hold':0,'stop':1.2,'trail':1.8,'take':2.5},
-      {'score':4,'adx':18,'hold':3,'stop':1.2,'trail':1.8,'take':2.5},
-      {'score':4,'adx':18,'hold':6,'stop':1.5,'trail':2.0,'take':3.0},
-      {'score':4,'adx':24,'hold':12,'stop':1.5,'trail':2.0,'take':3.0},
-      {'score':5,'adx':18,'hold':6,'stop':1.8,'trail':2.5,'take':4.0},
-      {'score':5,'adx':24,'hold':12,'stop':1.8,'trail':2.5,'take':4.0},
-      {'score':5,'adx':30,'hold':24,'stop':2.2,'trail':3.0,'take':5.0},
-      {'score':6,'adx':24,'hold':24,'stop':1.8,'trail':2.5,'take':4.0},
-      {'score':4,'adx':12,'hold':24,'stop':2.2,'trail':3.0,'take':5.0},
-      {'score':3,'adx':18,'hold':36,'stop':2.2,'trail':3.0,'take':5.0},
+      {'score':7,'adx':12,'hold':0,'stop':1.2,'trail':1.8,'take':2.5},
+      {'score':7,'adx':18,'hold':3,'stop':1.2,'trail':1.8,'take':2.5},
+      {'score':7,'adx':18,'hold':6,'stop':1.5,'trail':2.0,'take':3.0},
+      {'score':7,'adx':24,'hold':12,'stop':1.5,'trail':2.0,'take':3.0},
+      {'score':7,'adx':18,'hold':6,'stop':1.8,'trail':2.5,'take':4.0},
+      {'score':7,'adx':24,'hold':12,'stop':1.8,'trail':2.5,'take':4.0},
+      {'score':7,'adx':30,'hold':24,'stop':2.2,'trail':3.0,'take':5.0},
+      {'score':7,'adx':24,'hold':24,'stop':1.8,'trail':2.5,'take':4.0},
+      {'score':7,'adx':12,'hold':24,'stop':2.2,'trail':3.0,'take':5.0},
+      {'score':7,'adx':18,'hold':36,'stop':2.2,'trail':3.0,'take':5.0},
     ]
     for q in base:
         p={'rsi_lo':48,'rsi_hi':72,'vol':0.85,**q}
         _,t=trade_engine(train,p); s=stats(t)
         if s['n']>=2: candidates.append((s['total'],p))
-    p=max(candidates,key=lambda q:q[0])[1] if candidates else {'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':4,'hold':6}
+    p=max(candidates,key=lambda q:q[0])[1] if candidates else {'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':7,'hold':6}
     eng,trades=trade_engine(d,p)
     test=d.iloc[split:].copy(); _,test_trades=trade_engine(test,p)
     return p,eng,trades,stats(test_trades),split
@@ -155,7 +160,7 @@ try:
     params,eng,trades,oos,split=optimize_strategy(d); bt=stats(trades)
     active=(eng.sig.iloc[-1]=='매수') or (len(eng)>1 and '매수' in eng.sig.iloc[max(0,len(eng)-12):].values and '매도' not in eng.sig.iloc[max(0,len(eng)-12):].values)
     lab='매수' if eng.sig.iloc[-1]=='매수' else '매도' if eng.sig.iloc[-1]=='매도' else '관망'
-    score=int(eng.signal_score.iloc[-1]); reasons=[f'복합지표 점수 {score}/7',f"ADX 기준 {params['adx']}",f"진입 {params['score']}/7 · 최소보유 {params['hold']}시간"]
+    score=int(eng.signal_score.iloc[-1]); reasons=[f'복합지표 점수 {score}/7',f"ADX 기준 {params['adx']}",f"진입 {params['score']}/8 · DMI(+DI/-DI) · 최소보유 {params['hold']}시간"]
     pct=(last.close/prev.close-1)*100
     a,b,c,dcol=st.columns(4)
     a.metric('현재가',f'₩{last.close/1_000_000:.2f}M' if last.close>=10_000_000 else f'₩{last.close:,.0f}',f'{pct:+.2f}%')
@@ -163,7 +168,7 @@ try:
     c.metric('MACD',f'{last.MACD:,.0f}')
     dcol.metric('전체 백테스트',f"{bt['total']:+.2f}%",f"OOS {oos['total']:+.2f}% · {oos['n']}회")
     sig_color='#e53935' if '매도' in lab else '#00a86b' if '매수' in lab else '#60708a'
-    st.markdown(f"<div class='signal'>현재 종합 신호 · <span style='color:{sig_color}'>{lab}</span> &nbsp; | &nbsp; 복합점수 {score}/7</div>",unsafe_allow_html=True)
+    st.markdown(f"<div class='signal'>현재 종합 신호 · <span style='color:{sig_color}'>{lab}</span> &nbsp; | &nbsp; 복합점수 {score}/8</div>",unsafe_allow_html=True)
 
     ev=eng[eng.sig.isin(['매수','매도'])].copy()
     ev['kind']=ev.sig
@@ -236,7 +241,7 @@ try:
     hi=view.high.tail(min(72,len(view))).max(); lo=view.low.tail(min(72,len(view))).min()
     st.markdown(f"**주요 가격 구간** · 단기 저항 ₩{hi:,.0f} · 현재가 ₩{last.close:,.0f} · 단기 지지 ₩{lo:,.0f}")
     st.markdown('**신호 판단 근거:** ' + ' · '.join(reasons))
-    st.caption(f"복합전략: EMA · MACD · RSI · ADX · 거래량 · Bollinger · Stochastic · 보유기간 자동최적화 | 전체 {len(d)}캔들: {bt['n']}회 · 승률 {bt['win']:.1f}% · 누적 {bt['total']:+.2f}% · PF {bt['pf']:.2f}")
+    st.caption(f"복합전략: EMA · MACD · RSI · ADX · DMI Cross · 거래량 · Bollinger · Stochastic · 보유기간 자동최적화 | 전체 {len(d)}캔들: {bt['n']}회 · 승률 {bt['win']:.1f}% · 누적 {bt['total']:+.2f}% · PF {bt['pf']:.2f}")
     st.caption(f"후반 30% OOS 검증(최적화 미사용 구간): {oos['n']}회 · 승률 {oos['win']:.1f}% · 누적 {oos['total']:+.2f}% · PF {oos['pf']:.2f} | 수수료·슬리피지 반영")
     st.caption(f'마지막 업데이트 캔들: {last.time:%Y-%m-%d %H:%M} KST · 본 앱의 신호는 투자 판단 보조용이며 수익을 보장하지 않습니다.')
 except Exception as e:
