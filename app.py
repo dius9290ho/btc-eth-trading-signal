@@ -33,11 +33,20 @@ div[data-testid="stSegmentedControl"] button{min-height:46px}
 
 st.markdown("<div class='hero'><h1>₿ BTC · ETH Trading Signal</h1><div class='muted'>가격 추세와 기술지표를 한 화면에서 확인하는 분석용 대시보드</div></div>", unsafe_allow_html=True)
 
-@st.cache_data(ttl=60)
-def upbit_candles(market, unit, count=200):
+@st.cache_data(ttl=300)
+def upbit_candles(market, unit, count=1000):
     url=f'https://api.upbit.com/v1/candles/minutes/{unit}'
-    r=requests.get(url,params={'market':market,'count':count},timeout=10); r.raise_for_status()
-    d=pd.DataFrame(r.json()).sort_values('candle_date_time_kst')
+    rows=[]; to=None
+    while len(rows)<count:
+        n=min(200,count-len(rows)); params={'market':market,'count':n}
+        if to: params['to']=to
+        r=requests.get(url,params=params,timeout=10); r.raise_for_status()
+        batch=r.json()
+        if not batch: break
+        rows.extend(batch)
+        oldest=pd.to_datetime(batch[-1]['candle_date_time_utc'])-pd.Timedelta(seconds=1)
+        to=oldest.strftime('%Y-%m-%dT%H:%M:%S')
+    d=pd.DataFrame(rows).drop_duplicates('candle_date_time_kst').sort_values('candle_date_time_kst')
     d['time']=pd.to_datetime(d['candle_date_time_kst'])
     d=d.rename(columns={'opening_price':'open','high_price':'high','low_price':'low','trade_price':'close','candle_acc_trade_volume':'volume'})
     return d[['time','open','high','low','close','volume']].reset_index(drop=True)
@@ -54,32 +63,62 @@ def indicators(d):
     tr=pd.concat([(x.high-x.low),(x.high-c.shift()).abs(),(x.low-c.shift()).abs()],axis=1).max(axis=1)
     x['ATR']=tr.ewm(alpha=1/14,adjust=False).mean()
     x['VOLMA20']=x.volume.rolling(20).mean()
+    mid=c.rolling(20).mean(); sd=c.rolling(20).std()
+    x['BBmid']=mid; x['BBupper']=mid+2*sd; x['BBlower']=mid-2*sd
+    low14=x.low.rolling(14).min(); high14=x.high.rolling(14).max()
+    x['STOCHK']=100*(c-low14)/(high14-low14).replace(0,np.nan)
+    up=x.high.diff(); dn=-x.low.diff()
+    plus=np.where((up>dn)&(up>0),up,0.0); minus=np.where((dn>up)&(dn>0),dn,0.0)
+    atr=x['ATR'].replace(0,np.nan)
+    pdi=100*pd.Series(plus,index=x.index).ewm(alpha=1/14,adjust=False).mean()/atr
+    mdi=100*pd.Series(minus,index=x.index).ewm(alpha=1/14,adjust=False).mean()/atr
+    x['ADX']=(100*(pdi-mdi).abs()/(pdi+mdi).replace(0,np.nan)).ewm(alpha=1/14,adjust=False).mean()
     return x
 
-def trade_engine(x, fee=0.0005, slip=0.0003):
+def trade_engine(x, p=None, fee=0.0005, slip=0.0003):
+    if p is None: p={'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':4}
     z=x.copy()
-    z['trend']=(z.close>z.EMA100)&(z.EMA20>z.EMA50)&(z.EMA50>z.EMA100)
-    z['momentum']=(z.MACD>z.MACDsig)&(z.MACD>0)&z.RSI.between(52,68)
-    z['volume_ok']=z.volume>z.VOLMA20
-    z['entry_ok']=z.trend&z.momentum&z.volume_ok
-    z['exit_ok']=(z.close<z.EMA20)|(z.MACD<z.MACDsig)|(z.RSI>74)
+    tests=pd.DataFrame(index=z.index)
+    tests['trend']=(z.close>z.EMA100)&(z.EMA20>z.EMA50)
+    tests['macd']=(z.MACD>z.MACDsig)
+    tests['rsi']=z.RSI.between(p['rsi_lo'],p['rsi_hi'])
+    tests['adx']=z.ADX>=p['adx']
+    tests['volume']=z.volume>=z.VOLMA20*p['vol']
+    tests['bb']=z.close>=z.BBmid
+    tests['stoch']=z.STOCHK.between(35,85)
+    z['signal_score']=tests.sum(axis=1)
+    z['entry_ok']=z['signal_score']>=p['score']
+    z['exit_ok']=(z.close<z.EMA20)|(z.MACD<z.MACDsig)|(z.RSI>76)|(z.STOCHK>92)
     sig=['관망']*len(z); trades=[]; in_pos=False; entry=0; entry_i=None; peak=0
     for i in range(1,len(z)):
         r=z.iloc[i]
         if not in_pos and bool(r.entry_ok) and not bool(z.iloc[i-1].entry_ok):
             in_pos=True; entry=r.close*(1+slip); entry_i=i; peak=r.close; sig[i]='매수'
         elif in_pos:
-            peak=max(peak,r.close)
-            stop=entry-1.5*r.ATR
-            trail=peak-2.0*r.ATR
-            take=entry+3.0*r.ATR
+            peak=max(peak,r.close); atrv=r.ATR
+            stop=entry-p['stop']*atrv; trail=peak-p['trail']*atrv; take=entry+p['take']*atrv
             if bool(r.exit_ok) or r.close<=max(stop,trail) or r.close>=take:
-                out=r.close*(1-slip)
-                net=(out/entry-1)-2*fee
+                out=r.close*(1-slip); net=(out/entry-1)-2*fee
                 trades.append({'entry_time':z.iloc[entry_i].time,'entry':entry,'exit_time':r.time,'exit':out,'return':net})
                 in_pos=False; sig[i]='매도'
     z['sig']=sig
     return z,pd.DataFrame(trades)
+
+def optimize_strategy(d):
+    split=max(180,int(len(d)*0.70)); train=d.iloc[:split]
+    candidates=[]
+    for score in [4,5,6]:
+      for adx in [15,20,25]:
+       for stop,trail,take in [(1.2,1.8,2.5),(1.5,2.0,3.0),(1.8,2.5,4.0)]:
+        p={'rsi_lo':48,'rsi_hi':70,'adx':adx,'vol':0.9,'stop':stop,'trail':trail,'take':take,'score':score}
+        _,t=trade_engine(train,p); s=stats(t)
+        if s['n']>=3:
+            objective=s['total'] + min(s['pf'],5)*1.5 + s['win']*.03
+            candidates.append((objective,p))
+    p=max(candidates,key=lambda q:q[0])[1] if candidates else {'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':4}
+    eng,trades=trade_engine(d,p)
+    test=d.iloc[split:].copy(); _,test_trades=trade_engine(test,p)
+    return p,eng,trades,stats(test_trades),split
 
 def stats(trades):
     if trades.empty: return {'n':0,'win':0,'avg':0,'total':0,'pf':0}
@@ -100,19 +139,20 @@ if period is None:
     period='1주'
 market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
 try:
-    raw=upbit_candles(market,unit,200); d=indicators(raw); last=d.iloc[-1]; prev=d.iloc[-2]
-    eng,trades=trade_engine(d); bt=stats(trades)
+    need={'1일':300,'1주':500,'1개월':1000}[period]
+    raw=upbit_candles(market,unit,need); d=indicators(raw); last=d.iloc[-1]; prev=d.iloc[-2]
+    params,eng,trades,oos,split=optimize_strategy(d); bt=stats(trades)
     active=(eng.sig.iloc[-1]=='매수') or (len(eng)>1 and '매수' in eng.sig.iloc[max(0,len(eng)-12):].values and '매도' not in eng.sig.iloc[max(0,len(eng)-12):].values)
     lab='매수' if eng.sig.iloc[-1]=='매수' else '매도' if eng.sig.iloc[-1]=='매도' else '관망'
-    score=3 if lab!='관망' else 0; reasons=['EMA20>EMA50>EMA100','MACD/RSI 모멘텀','거래량 확인'] if lab!='관망' else ['조건 미충족: 관망']
+    score=int(eng.signal_score.iloc[-1]); reasons=[f'복합지표 점수 {score}/7',f"ADX 기준 {params['adx']}",f"진입 기준 {params['score']}/7"]
     pct=(last.close/prev.close-1)*100
     a,b,c,dcol=st.columns(4)
     a.metric('현재가',f'₩{last.close/1_000_000:.2f}M' if last.close>=10_000_000 else f'₩{last.close:,.0f}',f'{pct:+.2f}%')
     b.metric('RSI (14)',f'{last.RSI:.1f}')
     c.metric('MACD',f'{last.MACD:,.0f}')
-    dcol.metric('백테스트',f"{bt['total']:+.2f}%",f"승률 {bt['win']:.0f}% · {bt['n']}회")
+    dcol.metric('전체 백테스트',f"{bt['total']:+.2f}%",f"OOS {oos['total']:+.2f}% · {oos['n']}회")
     sig_color='#e53935' if '매도' in lab else '#00a86b' if '매수' in lab else '#60708a'
-    st.markdown(f"<div class='signal'>현재 종합 신호 · <span style='color:{sig_color}'>{lab}</span> &nbsp; | &nbsp; 검증 신호</div>",unsafe_allow_html=True)
+    st.markdown(f"<div class='signal'>현재 종합 신호 · <span style='color:{sig_color}'>{lab}</span> &nbsp; | &nbsp; 복합점수 {score}/7</div>",unsafe_allow_html=True)
 
     ev=eng[eng.sig.isin(['매수','매도'])].copy()
     ev['kind']=ev.sig
@@ -156,9 +196,8 @@ try:
         st.stop()
 
     days={'1일':1,'1주':7,'1개월':30}[period]
-    view=d[d.time >= d.time.max()-pd.Timedelta(days=days)].copy()
-    if len(view)<20: view=d.tail(min(len(d),120)).copy()
-    view,_=trade_engine(view)
+    view=eng[eng.time >= eng.time.max()-pd.Timedelta(days=days)].copy()
+    if len(view)<20: view=eng.tail(min(len(eng),120)).copy()
     buys=view[view.sig=='매수']
     sells=view[view.sig=='매도']
 
@@ -186,7 +225,8 @@ try:
     hi=view.high.tail(min(72,len(view))).max(); lo=view.low.tail(min(72,len(view))).min()
     st.markdown(f"**주요 가격 구간** · 단기 저항 ₩{hi:,.0f} · 현재가 ₩{last.close:,.0f} · 단기 지지 ₩{lo:,.0f}")
     st.markdown('**신호 판단 근거:** ' + ' · '.join(reasons))
-    st.caption(f"백테스트(현재 불러온 {len(d)}개 캔들, 왕복비용 반영): 거래 {bt['n']}회 · 승률 {bt['win']:.1f}% · 평균 {bt['avg']:+.2f}% · 누적 {bt['total']:+.2f}% · Profit Factor {bt['pf']:.2f}")
+    st.caption(f"복합전략: EMA · MACD · RSI · ADX · 거래량 · Bollinger · Stochastic | 전체 {len(d)}캔들: {bt['n']}회 · 승률 {bt['win']:.1f}% · 누적 {bt['total']:+.2f}% · PF {bt['pf']:.2f}")
+    st.caption(f"후반 30% OOS 검증(최적화 미사용 구간): {oos['n']}회 · 승률 {oos['win']:.1f}% · 누적 {oos['total']:+.2f}% · PF {oos['pf']:.2f} | 수수료·슬리피지 반영")
     st.caption(f'마지막 업데이트 캔들: {last.time:%Y-%m-%d %H:%M} KST · 본 앱의 신호는 투자 판단 보조용이며 수익을 보장하지 않습니다.')
 except Exception as e:
     st.error('시세를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
