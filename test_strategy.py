@@ -60,6 +60,20 @@ class StrategyTests(unittest.TestCase):
             partial=app.signals(app.indicators(raw.iloc[:n]))
             pd.testing.assert_frame_equal(full.iloc[:n].reset_index(drop=True),partial.reset_index(drop=True))
 
+    def test_alternating_signals_and_price_only_chart(self):
+        z=frame([100]*12);z['RSI']=50.;z['PDI']=[20,20,20,20,10,10,10,10,20,20,20,20];z['MDI']=15.
+        z['SlowK']=[40,60,40,60,40,60,40,40,60,40,60,60];z['SlowD']=50.
+        out=app.signals(z)
+        emitted=out[out.sig.isin(['매수','매도'])].sig.tolist()
+        self.assertEqual(emitted,['매수','매도','매수'])
+        self.assertEqual(out.candidate_sig.iloc[3],'매수');self.assertEqual(out.sig.iloc[3],'관망')
+        self.assertEqual(out.candidate_sig.iloc[6],'매도');self.assertEqual(out.sig.iloc[6],'관망')
+        self.assertEqual(out.signal_state.iloc[7],'매도 이후')
+        fig=app.chart(out,90)
+        self.assertEqual(len(fig.data),1);self.assertEqual(fig.data[0].type,'candlestick')
+        self.assertEqual(len(fig.layout.annotations),3)
+        self.assertGreaterEqual(fig.layout.height,600)
+
     def test_next_open_costs_hold_and_pending_final(self):
         z=frame([100,110,120,130,140]);z['sig']=['매수','매도','관망','관망','매수']
         trades,eq,dd,holding=app.backtest(z,fee=.001,slip=.002)
