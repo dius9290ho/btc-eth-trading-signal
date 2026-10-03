@@ -276,7 +276,7 @@ def chart(z, days):
         fig.add_annotation(x=r.time.tz_localize(None), y=r.low-offset*.3 if buy else r.high+offset*.3,
             text='강력매도<br>추가 경고' if r.get('upgrade_warning',False) else r.get('signal_label',r.sig), showarrow=True, arrowhead=2, arrowwidth=4 if str(r.get('signal_label','')).startswith('강력') else 3,
             arrowcolor='#087f72' if buy else '#7841ad', font=dict(color='#087f72' if buy else '#7841ad',size=13 if str(r.get('signal_label','')).startswith('강력') else 12),
-            ax=0, ay=42 if buy else -42)
+            ax=46 if r.get('upgrade_warning',False) else 0, ay=-72 if r.get('upgrade_warning',False) else (42 if buy else -42))
     low, high = view.low.min(), view.high.max()
     padding = max((high-low)*.14, high*.025)
     fig.update_layout(height=410,template='plotly_white',xaxis_rangeslider_visible=False,
