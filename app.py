@@ -5,7 +5,7 @@ import requests
 import streamlit as st
 import plotly.graph_objects as go
 
-VERSION = 'DMI(14) 교차 · 일봉 종가 10% 손절 · DMI 강력 신호 · 4시간 모니터링 / v14'
+VERSION = 'DMI(14) 교차 · 일봉 종가 10% 손절 · DMI 강력 신호 · 1시간 모니터링 / v14'
 
 
 OPTIMIZATION_REPORT = {'KRW-BTC': {'params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'train': {'return': 59.504, 'dd': -9.5508, 'trades': 12}, 'validation': {'return': -5.4235, 'dd': -13.1394, 'trades': 6}, 'holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'baseline_holdout': {'return': 0.6368, 'dd': -16.0627, 'trades': 7}, 'full': {'return': 91.7306, 'dd': -13.4732, 'trades': 24}, 'baseline_full': {'return': -3.957, 'dd': -25.7951, 'trades': 27}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(-6.1246), 'dd': np.float64(-14.1909)}, 'buyhold_holdout': np.float64(-10.6101), 'applied_params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'applied_holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'decision': 'BTC: 비교 후 적용'}, 'KRW-ETH': {'params': {'window': 21, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'stoch_direction', 'min_adx': 15, 'exit_mode': 'confirmed'}, 'train': {'return': 80.6914, 'dd': -27.0236, 'trades': 8}, 'validation': {'return': 21.3897, 'dd': -24.613, 'trades': 6}, 'holdout': {'return': -7.5621, 'dd': -24.1031, 'trades': 5}, 'baseline_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'full': {'return': 104.1785, 'dd': -36.407, 'trades': 20}, 'baseline_full': {'return': 18.7774, 'dd': -42.651, 'trades': 24}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(6.6622), 'dd': np.float64(-29.9458)}, 'buyhold_holdout': np.float64(-13.2666), 'applied_params': {'window': 14, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'confirmed'}, 'applied_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'decision': 'ETH: 별도 평가에서 악화되어 기존 조건 유지'}}
@@ -113,16 +113,22 @@ def intraday_monitor(raw, market, strategy='v14', previous=None, now=None):
     label = '손절 경고' if stop else '강력'+direction if strong and direction in ('매수','매도') else direction
     old_direction=old.get('direction')
     phase_warned = bool(old.get('sell_warned',False)) if direction==old_direction else False
+    buy_warned = bool(old.get('buy_warned',old.get('strong',False))) if direction==old_direction else False
     changed_direction = valid_previous and direction!=old_direction
     upgrade = valid_previous and direction=='매도' and old_direction=='매도' and strong and not phase_warned
+    buy_upgrade = valid_previous and direction=='매수' and old_direction=='매수' and strong and not buy_warned
     stop_upgrade = valid_previous and stop and not old.get('stop_trigger',False)
-    alert = bool(changed_direction or upgrade or stop_upgrade)
+    alert = bool(changed_direction or upgrade or buy_upgrade or stop_upgrade)
     if direction=='매수':
         phase_warned=False
+        if strong:
+            buy_warned=True
     elif direction=='매도' and strong:
         phase_warned=True
-    kind = '장중 손절 경고' if stop_upgrade or (stop and changed_direction) else '장중 강력매도 추가 경고' if upgrade else '장중 방향 전환' if changed_direction else ''
-    state = {'market':market,'strategy':strategy,'checked_at':now.isoformat(),'candle_at':r.time.isoformat(),'direction':direction,'signal_label':label,'strong':strong,'sell_warned':phase_warned,'stop_trigger':stop,'price':float(r.close),'is_provisional':provisional,'reason':reason}
+    if direction!='매수':
+        buy_warned=False
+    kind = '장중 손절 경고' if stop_upgrade or (stop and changed_direction) else '장중 강력매도 추가 경고' if upgrade else '장중 강력매수 추가 확인' if buy_upgrade else '장중 방향 전환' if changed_direction else ''
+    state = {'market':market,'strategy':strategy,'checked_at':now.isoformat(),'candle_at':r.time.isoformat(),'direction':direction,'signal_label':label,'strong':strong,'sell_warned':phase_warned,'buy_warned':buy_warned,'stop_trigger':stop,'price':float(r.close),'is_provisional':provisional,'reason':reason}
     return {'state':state,'alert_event':alert,'event_kind':kind,'upgrade_warning':bool(upgrade),'previous_label':old.get('signal_label',''),'signal_label':label,'reason':reason}
 
 
@@ -462,7 +468,7 @@ def chart(z, days):
     return fig
 
 
-@st.fragment(run_every="4h")
+@st.fragment(run_every="1h")
 def main():
     st.set_page_config(page_title='BTC · ETH 일봉 매매 신호',page_icon='₿',layout='wide')
     st.markdown("""<style>
@@ -502,7 +508,7 @@ def main():
     }
     </style>""",unsafe_allow_html=True)
     st.title('BTC · ETH 일봉 매매')
-    st.caption('일봉 지표 · 장중 4시간 확인 · 변화 시 알림 · 버전 선택')
+    st.caption('일봉 지표 · 장중 1시간 확인 · 변화 시 알림 · 버전 선택')
     coin=st.radio('코인',['비트코인 (BTC)','이더리움 (ETH)'],index=0,horizontal=True,label_visibility='collapsed',key='display_coin')
     strategy_choice=st.radio('매매 판단 버전',['v14 · DMI·손절','v13 · 복합지표'],index=0,horizontal=True,key='display_strategy')
     strategy='v14' if strategy_choice.startswith('v14') else 'v13'
@@ -517,15 +523,15 @@ def main():
             st.markdown('**일봉 DMI(14) 교차 + 종가 10% 손절 · BTC/ETH 동일 조건**')
             st.markdown('**매수:** +DI가 −DI를 상향교차. **매도:** +DI가 −DI를 하향교차하거나 확정 일봉 종가가 모의 매수가의 90% 이하. 매수·매도는 번갈아 표시하며 손절 후에는 다음 DMI 상향교차까지 대기합니다.')
             st.caption('강력매수·강력매도: 신호 방향의 DI가 우세하고, ADX(14)가 20 이상이면서 전일보다 상승하고, 우세 DI의 격차도 전일보다 확대될 때 표시합니다. ADX는 DMI의 추세 강도 값입니다. 이 조건은 표시·경고에만 사용하며 교차 매매를 제한하지 않습니다. 강력은 조건 일치도이며 적중률을 뜻하지 않습니다.')
-            st.caption('일반 매도 이후 DMI 강력매도 조건을 처음 충족하면 다음 매수 전까지 추가 경고를 한 번 알립니다. 최초 매도 시 이미 강력 조건이면 재경고하지 않습니다. 이미 매도했다면 추가 거래가 필요 없습니다. 매수 이후 강력매수 추가 알림은 없습니다.')
+            st.caption('일반 매도 이후 DMI 강력매도 조건을 처음 충족하면 다음 매수 전까지 추가 경고를 한 번 알립니다. 최초 매도 시 이미 강력 조건이면 재경고하지 않습니다. 이미 매도했다면 추가 거래가 필요 없습니다. 확정 이력에서는 매수 이후 강력매수 추가 신호를 만들지 않습니다. 장중 모니터링에서는 일반 매수 후 강력매수 강화도 한 번 알립니다. 이미 매수한 경우 추가 매수 지시가 아닙니다.')
             st.caption('손절은 매수 신호 다음 일봉 시가에 슬리피지 0.03%를 반영한 모의 매수가 기준입니다. 확정 일봉 종가로 판단하고 다음 일봉 시가에 모의 체결하므로 실제 손실이 10%를 넘을 수 있습니다. 실제 계좌 매수가와 연동되지 않습니다.')
             st.caption('RSI·스토캐스틱·EMA·MACD·거래량은 현재 매매 및 강력 신호 판단에 사용하지 않습니다.')
         else:
             st.markdown('**v13 · 기존 복합지표 + 종가 10% 손절**')
             st.caption('DMI(14), RSI(14) 다이버전스, Slow Stochastic(30/10/10) 조합. BTC는 30일 다이버전스와 DMI 하향교차 조기청산, ETH는 14일 다이버전스와 EMA(50), MACD 히스토그램 양수 및 +DI − −DI ≥ 2포인트 매수 확인을 적용합니다. v13의 기존 매매 조건을 그대로 사용합니다.')
-            st.caption('강력 신호는 RSI 방향·DMI 방향(ADX≥20)·스토캐스틱 방향이 일치할 때 표시합니다. 일반 매도 이후 강력매도 조건이 강화되면 다음 매수 전까지 추가 경고 1회. 매수 이후 강력매수 추가 알림은 없습니다.')
+            st.caption('강력 신호는 RSI 방향·DMI 방향(ADX≥20)·스토캐스틱 방향이 일치할 때 표시합니다. 일반 매도 이후 강력매도 조건이 강화되면 다음 매수 전까지 추가 경고 1회. 확정 이력에서는 매수 이후 강력매수 추가 신호를 만들지 않습니다. 장중 모니터링에서는 일반 매수 후 강력매수 강화도 한 번 알립니다. 이미 매수한 경우 추가 매수 지시가 아닙니다.')
             st.caption('손절은 확정 일봉 종가가 모의 매수가의 90% 이하일 때 판단합니다. 실제 계좌와 연동되지 않으며 실제 손실이 10%를 넘을 수 있습니다.')
-        st.caption('장중 판단은 진행 중인 일봉의 현재가·고가·저가로 4시간마다 재계산합니다. 신호 방향 변화·강력매도 강화·손절 기준 도달 시만 알림을 내며 최초 조회는 기준 상태만 저장합니다. 확정 이력·백테스트는 마감 일봉만 사용합니다. 앱 밖 예약 알림은 v14 기준입니다.')
+        st.caption('장중 판단은 진행 중인 일봉의 현재가·고가·저가로 1시간마다 재계산합니다. 신호 방향 변화·강력매수/강력매도 강화·손절 기준 도달 시만 알림을 내며 최초 조회는 기준 상태만 저장합니다. 확정 이력·백테스트는 마감 일봉만 사용합니다. 앱 밖 예약 알림은 v14 기준입니다.')
     market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
     try:
         with st.spinner('일봉 데이터를 분석하고 있습니다…'):
@@ -558,8 +564,8 @@ def main():
             st.write(f"신호 확정: {last.confirmed_at:%Y-%m-%d %H:%M} KST · 근거: {last.reason or '새로운 매매 조건이 없습니다.'}")
             if last.signal_state == '매수 이후' and pd.notna(last.stop_price):
                 st.write(f'현재 모의 손절 기준 ₩{last.stop_price:,.0f} · 모의 매수가 ₩{last.sim_entry_price:,.0f}')
-            st.caption(f'이번 확인 {checked_at:%Y-%m-%d %H:%M} · 다음 앱 확인 {checked_at+pd.Timedelta(hours=4):%m-%d %H:%M} KST')
-            st.caption('앱이 열려 있으면 선택한 버전으로 진행 중인 일봉을 4시간마다 재확인하며 변화가 있을 때만 알립니다. 새로고침·코인/버전 변경 시에도 계산합니다. 4시간 사이에 발생했다가 사라진 변화는 포착하지 못합니다. 확정 이력·백테스트만 KST 09:00 마감 일봉을 사용합니다. 앱 밖 예약 알림은 v14 기준이며 화면의 버전 선택과 별개입니다. 자동주문은 없습니다.')
+            st.caption(f'이번 확인 {checked_at:%Y-%m-%d %H:%M} · 다음 앱 확인 {checked_at+pd.Timedelta(hours=1):%m-%d %H:%M} KST')
+            st.caption('앱이 열려 있으면 선택한 버전으로 진행 중인 일봉을 1시간마다 재확인하며 변화가 있을 때만 알립니다. 새로고침·코인/버전 변경 시에도 계산합니다. 1시간 사이에 발생했다가 사라진 변화는 포착하지 못합니다. 확정 이력·백테스트만 KST 09:00 마감 일봉을 사용합니다. 앱 밖 예약 알림은 v14 기준이며 화면의 버전 선택과 별개입니다. 자동주문은 없습니다.')
             st.caption('종가 10% 손절은 모의 매수가 기준입니다. 실제 계좌와 연동되지 않으며, 마감·알림·체결 지연으로 실제 손실이 10%를 넘을 수 있습니다. 조회 가격은 5분 캐시 또는 새로고침으로 갱신합니다.')
         tab1,tab2=st.tabs(['확정 매매 신호 이력','백테스트'])
         with tab1:
@@ -599,7 +605,7 @@ def main():
             st.markdown('**DMI(14) + 일봉 종가 10% 손절 비교**')
             st.dataframe(pd.DataFrame(dmi_stop_rows),hide_index=True,use_container_width=True)
             st.caption('DMI 교차 조건에만 10% 종가 손절 추가. 모의 매수가=매수 신호 다음 일봉 시가+0.03% 슬리피지. 확정 종가가 매수가의90% 이하이면 매도, 다음 일봉 시가 체결. 장중 저가만으로 손절하지 않으며 실제 손실이10%를 넘을 수 있습니다. 손절 이후 다음 DMI 상향교차까지 대기합니다. 현재 차트·신호·백테스트는 위에서 선택한 버전의 조건을 적용합니다.')
-            st.caption('설정한 차트 기간의 시작은 현금 100%로 가정합니다. 지표는 이전 데이터로 계산하고, 확정 신호 다음 일봉 시가에 체결합니다. 최소 보유 24시간 · 거래당 수수료 0.05% · 슬리피지 0.03%.')
+            st.caption('설정한 차트 기간의 시작은 현금 100%로 가정합니다. 지표는 이전 데이터로 계산하고, 확정 신호 다음 일봉 시가에 체결합니다. 최소 보유 21시간 · 거래당 수수료 0.05% · 슬리피지 0.03%.')
             btdata=z[z.time >= z.time.max()-pd.Timedelta(days=days)].reset_index(drop=True)
             trades,equity,dd,holding=backtest(btdata)
             total=(equity.iloc[-1]-1)*100
