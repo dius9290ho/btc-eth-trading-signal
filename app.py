@@ -5,7 +5,7 @@ import requests
 import streamlit as st
 import plotly.graph_objects as go
 
-VERSION = '일봉 매매 신호 · 검증 최적화 · EMA 추가 검증 · 일봉 종가 10% 손절 · 4시간 모니터링 / v7'
+VERSION = '일봉 매매 신호 · 검증 최적화 · EMA 추가 검증 · 일봉 종가 10% 손절 · 4시간 모니터링 / v8'
 
 
 OPTIMIZATION_REPORT = {'KRW-BTC': {'params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'train': {'return': 59.504, 'dd': -9.5508, 'trades': 12}, 'validation': {'return': -5.4235, 'dd': -13.1394, 'trades': 6}, 'holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'baseline_holdout': {'return': 0.6368, 'dd': -16.0627, 'trades': 7}, 'full': {'return': 91.7306, 'dd': -13.4732, 'trades': 24}, 'baseline_full': {'return': -3.957, 'dd': -25.7951, 'trades': 27}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(-6.1246), 'dd': np.float64(-14.1909)}, 'buyhold_holdout': np.float64(-10.6101), 'applied_params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'applied_holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'decision': 'BTC: 비교 후 적용'}, 'KRW-ETH': {'params': {'window': 21, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'stoch_direction', 'min_adx': 15, 'exit_mode': 'confirmed'}, 'train': {'return': 80.6914, 'dd': -27.0236, 'trades': 8}, 'validation': {'return': 21.3897, 'dd': -24.613, 'trades': 6}, 'holdout': {'return': -7.5621, 'dd': -24.1031, 'trades': 5}, 'baseline_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'full': {'return': 104.1785, 'dd': -36.407, 'trades': 20}, 'baseline_full': {'return': 18.7774, 'dd': -42.651, 'trades': 24}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(6.6622), 'dd': np.float64(-29.9458)}, 'buyhold_holdout': np.float64(-13.2666), 'applied_params': {'window': 14, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'confirmed'}, 'applied_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'decision': 'ETH: 별도 평가에서 악화되어 기존 조건 유지'}}
@@ -229,27 +229,54 @@ def chart(z, days):
         buy = r.sig == '매수'; offset = max(r.high-r.low, r.close*.015)
         fig.add_annotation(x=r.time.tz_localize(None), y=r.low-offset*.3 if buy else r.high+offset*.3,
             text=r.sig, showarrow=True, arrowhead=2, arrowwidth=3,
-            arrowcolor='#073da8' if buy else '#7c168e', font=dict(color='#073da8' if buy else '#7c168e',size=14),
+            arrowcolor='#073da8' if buy else '#7c168e', font=dict(color='#073da8' if buy else '#7c168e',size=12),
             ax=0, ay=42 if buy else -42)
     low, high = view.low.min(), view.high.max()
     padding = max((high-low)*.14, high*.025)
-    fig.update_layout(height=650,template='plotly_white',xaxis_rangeslider_visible=False,
+    fig.update_layout(height=410,template='plotly_white',xaxis_rangeslider_visible=False,
         hovermode='x unified',dragmode='pan',showlegend=False,
-        margin=dict(l=8,r=12,t=30,b=20),yaxis=dict(range=[low-padding,high+padding],side='right',tickformat=',.0f'))
-    fig.update_xaxes(tickformat='%y-%m-%d',showgrid=False,range=[dates.iloc[0]-pd.Timedelta(days=2),dates.iloc[-1]+pd.Timedelta(days=2)])
+        margin=dict(l=4,r=8,t=20,b=12),font=dict(size=12,color='#273449'),paper_bgcolor='#ffffff',plot_bgcolor='#ffffff',yaxis=dict(range=[low-padding,high+padding],side='right',tickformat=',.0f',gridcolor='#edf1f6',nticks=5))
+    unit=100000000 if high >= 10000000 else 10000
+    ticks=np.linspace(low,high,5)
+    fig.update_yaxes(tickmode='array',tickvals=ticks,ticktext=[f'{v/unit:.2f}억' if unit==100000000 else f'{v/unit:,.0f}만' for v in ticks])
+    fig.update_xaxes(nticks=5,tickformat='%y-%m-%d',showgrid=False,range=[dates.iloc[0]-pd.Timedelta(days=2),dates.iloc[-1]+pd.Timedelta(days=2)])
     return fig
 
 
 @st.fragment(run_every="4h")
 def main():
     st.set_page_config(page_title='BTC · ETH 일봉 매매 신호',page_icon='₿',layout='wide')
-    st.markdown('<style>.block-container{max-width:1400px;padding-top:1.2rem}[data-testid="stMetric"]{background:#f4f7fb;padding:12px;border-radius:12px}[data-testid="stMetricValue"]{font-size:1.7rem}</style>',unsafe_allow_html=True)
-    st.title('₿ BTC · ETH 일봉 매매 신호')
-    st.caption(VERSION+' · 확정 일봉 기준 · 자동주문 없음')
+    st.markdown("""<style>
+    .stApp{background:#f4f6fa;color:#18263d;font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif}
+    .block-container{max-width:1180px;padding:1rem 1.2rem 2rem}
+    [data-testid="stVerticalBlock"]{gap:.65rem}
+    h1{font-size:1.65rem!important;line-height:1.25!important;padding:.2rem 0!important;font-weight:750!important;color:#172b4d}
+    p,label{font-size:15px!important;line-height:1.5!important}
+    [data-testid="stCaptionContainer"] p{font-size:13px!important;color:#53647c!important}
+    [data-testid="stMetric"]{background:#fff;border:1px solid #dce4ee;border-top:3px solid #55789f;padding:10px 14px;border-radius:10px}
+    [data-testid="stMetricLabel"] p{font-size:13px!important;color:#53647c}
+    [data-testid="stMetricValue"]{font-size:1.4rem!important;font-weight:700}
+    [data-testid="stExpander"]{background:#fff;border-color:#dce4ee;border-radius:9px}
+    [data-testid="stPlotlyChart"]{background:#fff;border:1px solid #dce4ee;border-radius:12px;overflow:hidden}
+    .stButton button{min-height:40px;border-color:#cbd8e7;border-radius:8px;font-weight:600}
+    [data-baseweb="tab"]{font-size:15px;font-weight:650}
+    @media(max-width:640px){
+      .block-container{padding:.6rem .65rem 1.5rem}
+      h1{font-size:1.3rem!important}
+      [data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;gap:.45rem!important}
+      [data-testid="stHorizontalBlock"]>[data-testid="stColumn"]{min-width:0!important;flex:1 1 0!important}
+      [data-testid="stMetric"]{padding:8px 6px}
+      [data-testid="stMetricValue"]{font-size:1rem!important}
+      [data-testid="stMetricLabel"] p{font-size:11px!important}
+      p,label{font-size:14px!important}
+    }
+    </style>""",unsafe_allow_html=True)
+    st.title('BTC · ETH 일봉 매매')
+    st.caption('확정 일봉 · 4시간 확인 · 종가 10% 손절 · v8')
     a,b,c=st.columns([2,2,1])
     coin=a.selectbox('코인',['Bitcoin (BTC)','Ethereum (ETH)'])
     period=b.selectbox('차트 기간',['1개월','3개월','6개월','1년','2년'],index=1)
-    if c.button('시세 새로고침',use_container_width=True):
+    if c.button('새로고침',use_container_width=True):
         daily_candles.clear()
         st.rerun()
     market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
@@ -279,24 +306,27 @@ def main():
         z=active_signals(indicators(closed),market) if mode=='검증 후 선택한 조건' else signals(indicators(closed),int(window),float(min_price),float(min_rsi),ema_period=50 if use_ema else 0,ema_exit=use_ema,stop_pct=10.0)
         last=z.iloc[-1]; current=raw.iloc[-1]
         checked_at=pd.Timestamp.now(tz='Asia/Seoul')
-        st.caption(f'4시간 자동 모니터링 · 이번 확인: {checked_at:%Y-%m-%d %H:%M} KST · 다음 확인: {checked_at+pd.Timedelta(hours=4):%m-%d %H:%M} KST')
         alert_key=f'monitor_check_{market}'
         previous_check=st.session_state.get(alert_key,checked_at)
         fresh=z[(z.confirmed_at>previous_check)&z.sig.isin(['매수','매도'])]
         for _,event in fresh.iterrows():
             st.toast(f'{market} {event.sig} · {event.confirmed_at:%m/%d %H:%M} · {event.reason}',icon='🔔')
         st.session_state[alert_key]=checked_at
-        st.caption('앱이 열려 있는 동안 4시간마다 재확인합니다. 앱을 닫아둔 경우의 알림은 ChatGPT 예약 모니터링으로 전달됩니다.')
         a,b,c=st.columns(3)
-        a.metric('최근 조회 가격',f'₩{current.close:,.0f}')
-        b.metric('확정 일봉 신호',last.sig)
-        c.metric('최근 신호 상태',last.signal_state)
-        st.caption('일봉 종가 10% 손절 적용 · 마감 후 4시간 모니터링에서 확인 · 실제 손실을 10% 이내로 보장하지 않습니다.')
-        st.info(f"판단 일봉: {last.time:%Y-%m-%d} · 신호 확정: {last.confirmed_at:%Y-%m-%d %H:%M} KST\n\n근거: {last.reason or '새로운 매매 조건이 없습니다.'}")
-        st.caption(f'업비트 일봉은 한국시간 09:00에 마감합니다. 진행 중인 일봉은 신호와 백테스트에서 제외됩니다. 최근 조회 캔들 시작: {current.time:%Y-%m-%d %H:%M} KST · 가격은 5분 캐시 또는 새로고침으로 갱신됩니다.')
+        a.metric('조회 가격',f'₩{current.close:,.0f}')
+        b.metric('일봉 신호',last.sig)
+        c.metric('신호 상태',last.signal_state)
+        st.caption(f'판단 일봉 {last.time:%m/%d} · 확인 {checked_at:%H:%M} KST · 파랑 매수 / 보라 매도')
         days={'1개월':30,'3개월':90,'6개월':180,'1년':365,'2년':730}[period]
         st.plotly_chart(chart(z,days),use_container_width=True)
-        st.caption('파란 화살표: 매수 · 보라 화살표: 매도. 같은 방향의 신호는 반복 표시하지 않습니다. 일봉 확대는 차트의 + 버튼을 사용해 주세요.')
+        with st.expander('판단 근거 · 모니터링 안내',expanded=False):
+            st.caption(VERSION)
+            st.write(f"신호 확정: {last.confirmed_at:%Y-%m-%d %H:%M} KST · 근거: {last.reason or '새로운 매매 조건이 없습니다.'}")
+            if last.signal_state == '매수 이후' and pd.notna(last.stop_price):
+                st.write(f'현재 모의 손절 기준 ₩{last.stop_price:,.0f} · 모의 매수가 ₩{last.sim_entry_price:,.0f}')
+            st.caption(f'이번 확인 {checked_at:%Y-%m-%d %H:%M} · 다음 앱 확인 {checked_at+pd.Timedelta(hours=4):%m-%d %H:%M} KST')
+            st.caption('앱이 열려 있으면 4시간마다 재확인합니다. 닫아둔 경우 ChatGPT 예약 모니터링으로 알립니다. 일봉은 KST 09:00 마감, 진행 중인 일봉은 제외합니다. 자동주문은 없습니다.')
+            st.caption('종가 10% 손절은 모의 매수가 기준입니다. 실제 계좌와 연동되지 않으며, 마감·알림·체결 지연으로 실제 손실이 10%를 넘을 수 있습니다. 조회 가격은 5분 캐시 또는 새로고침으로 갱신합니다.')
         tab1,tab2=st.tabs(['매매 신호 이력','백테스트'])
         with tab1:
             events=z[z.sig.isin(['매수','매도'])].sort_values('confirmed_at',ascending=False).head(100)
