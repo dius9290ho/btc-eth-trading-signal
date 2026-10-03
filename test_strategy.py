@@ -72,7 +72,8 @@ class StrategyTests(unittest.TestCase):
         fig=app.chart(out,90)
         self.assertEqual(len(fig.data),1);self.assertEqual(fig.data[0].type,'candlestick')
         self.assertEqual(len(fig.layout.annotations),3)
-        self.assertGreaterEqual(fig.layout.height,600)
+        self.assertGreaterEqual(fig.layout.height,360)
+        self.assertLessEqual(fig.layout.height,450)
 
     def test_optimized_paths_are_causal_and_alternate(self):
         rng=np.random.default_rng(8)
