@@ -19,6 +19,11 @@ class StrategyTests(unittest.TestCase):
         z=app.dmi_only_signals(x)
         self.assertEqual(z.sig.tolist(),['관망','관망','매수','관망','관망','매도','매수'])
         self.assertFalse(z.stop_trigger.any())
+        stopped=app.dmi_only_signals(x,stop_pct=10)
+        self.assertEqual(stopped.sig.iloc[4],'매도')
+        self.assertTrue(stopped.stop_trigger.iloc[4])
+        self.assertEqual(stopped.sig.iloc[5],'관망')
+        self.assertEqual(stopped.sig.iloc[6],'매수')
         for n in [3,5,6]:
             pd.testing.assert_frame_equal(z.iloc[:n],app.dmi_only_signals(x.iloc[:n]))
 
