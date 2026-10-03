@@ -272,8 +272,8 @@ def label_strength(z):
     return z
 
 
-def dmi_only_signals(x):
-    """Confirmed DMI(14) crosses only; no ADX gate, other indicators or stop."""
+def dmi_only_signals(x, stop_pct=0):
+    """Confirmed DMI(14) crosses; optional daily-close stop, no other filters."""
     z=x.copy()
     ready=z.PDI.notna() & z.MDI.notna() & z.PDI.shift().notna() & z.MDI.shift().notna()
     buy=ready & (z.PDI>z.MDI) & (z.PDI.shift()<=z.MDI.shift())
@@ -281,7 +281,7 @@ def dmi_only_signals(x):
     z['candidate_sig']=np.select([buy,sell],['매수','매도'],default='관망')
     z['sig']=z.candidate_sig.copy()
     z['reason']=np.select([buy,sell],['DMI(14) 상향교차','DMI(14) 하향교차'],default='')
-    return sequence_signals(z,stop_pct=0)
+    return sequence_signals(z,stop_pct=stop_pct)
 
 
 def backtest(z, fee=0.0005, slip=0.0003):
@@ -475,8 +475,9 @@ def main():
                 st.caption('매매 신호는 매수·매도 순서로 번갈아 표시됩니다. 일반 매도 이후 하락 조건이 강해지면 추가 경고를 한 번 표시합니다. 추가 경고는 모의 거래나 보유 상태를 바꾸지 않습니다.')
         with tab2:
             st.markdown('**현재 조건 · 1년 / 2년 / 3년 누적 수익률**')
-            period_rows=[]; dmi_rows=[]
+            period_rows=[]; dmi_rows=[]; dmi_stop_rows=[]
             dmi_frame=dmi_only_signals(indicators(closed))
+            dmi_stop_frame=dmi_only_signals(indicators(closed),stop_pct=10)
             for years in [1,2,3]:
                 start=z.time.max()+pd.Timedelta(days=1)-pd.DateOffset(years=years)
                 window_data=z[z.time>=start].reset_index(drop=True)
@@ -487,11 +488,17 @@ def main():
                 dmi_window=dmi_frame[dmi_frame.time>=start].reset_index(drop=True)
                 dt,de,ddd,dh=backtest(dmi_window)
                 dmi_rows.append({'기간':f'{years}년','DMI만 수익률(%)':round((de.iloc[-1]-1)*100,4),'현재 앱 수익률(%)':round((curve.iloc[-1]-1)*100,4),'DMI 최대 낙폭(%)':round(ddd,4),'현재 앱 최대 낙폭(%)':round(drawdown,4),'DMI 완료 거래':len(dt),'DMI 1천만원 최종자산(원)':round(de.iloc[-1]*10_000_000)})
+                ds=dmi_stop_frame[dmi_stop_frame.time>=start].reset_index(drop=True)
+                dst,dse,dsdd,dsh=backtest(ds)
+                dmi_stop_rows.append({'기간':f'{years}년','DMI+10% 손절 수익률(%)':round((dse.iloc[-1]-1)*100,4),'DMI만 수익률(%)':round((de.iloc[-1]-1)*100,4),'손절 포함 최대 낙폭(%)':round(dsdd,4),'손절 제외 최대 낙폭(%)':round(ddd,4),'손절 포함 완료 거래':len(dst),'1천만원 최종자산(원)':round(dse.iloc[-1]*10_000_000)})
             st.dataframe(pd.DataFrame(period_rows),hide_index=True,use_container_width=True)
             st.caption('각 기간 현금 100%로 별도 시작 · 수수료 0.05%/편도 · 슬리피지 0.03%/편도 · 확정 신호 다음 일봉 시가 체결 · 미청산 보유분 평가손익 및 예상 청산비용 포함. 누적 수익률이며 연평균 수익률이 아닙니다. 현재 조건을 과거에 적용한 모의 결과로, 조건 선정 기간도 포함됩니다.')
             st.markdown('**DMI(14) 교차만 적용한 비교**')
             st.dataframe(pd.DataFrame(dmi_rows),hide_index=True,use_container_width=True)
             st.caption('동일 기간·동일 거래비용·다음 일봉 시가 체결. DMI만: +DI 상향교차 매수 / −DI 우세로 하향교차 매도. ADX·RSI·스토캐스틱·EMA·MACD 필터와 10% 손절을 모두 제외한 별도 모의 비교입니다. 기간 시작은 현금이며 시작 전 발생한 매수는 승계하지 않습니다. 실제 앱 신호는 현재 조건을 유지합니다.')
+            st.markdown('**DMI(14) + 일봉 종가 10% 손절 비교**')
+            st.dataframe(pd.DataFrame(dmi_stop_rows),hide_index=True,use_container_width=True)
+            st.caption('DMI 교차 조건에만 10% 종가 손절 추가. 모의 매수가=매수 신호 다음 일봉 시가+0.03% 슬리피지. 확정 종가가 매수가의90% 이하이면 매도, 다음 일봉 시가 체결. 장중 저가만으로 손절하지 않으며 실제 손실이10%를 넘을 수 있습니다. 손절 이후 다음 DMI 상향교차까지 대기합니다. 실제 앱 신호는 현재 조건을 유지합니다.')
             refinement=REFINEMENT_REPORT[market]
             st.markdown('**매수 조건 정교화 · v12 최근 1년 비교**')
             st.caption(f'{refinement["start"][:10]} ~ {refinement["end"][:10]} · 코인별 12개, 총 24개 확인 조건 비교 · 수수료·슬리피지 포함')
