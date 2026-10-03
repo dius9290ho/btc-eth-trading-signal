@@ -11,6 +11,17 @@ def frame(prices):
 
 
 class StrategyTests(unittest.TestCase):
+    def test_dmi_only_crosses_and_no_stop_or_other_filter(self):
+        x=frame([100,100,100,100,50,60,70])
+        x['PDI']=[np.nan,10,12,13,14,9,12]
+        x['MDI']=[np.nan,12,10,10,10,11,10]
+        x['ADX']=0.
+        z=app.dmi_only_signals(x)
+        self.assertEqual(z.sig.tolist(),['관망','관망','매수','관망','관망','매도','매수'])
+        self.assertFalse(z.stop_trigger.any())
+        for n in [3,5,6]:
+            pd.testing.assert_frame_equal(z.iloc[:n],app.dmi_only_signals(x.iloc[:n]))
+
     def test_refined_dmi_buy_gate_boundary_exit_and_causality(self):
         raw=frame([100,101,102,101,100,103,104])
         x=app.indicators(raw)
