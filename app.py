@@ -247,23 +247,23 @@ def chart(z, days):
 def main():
     st.set_page_config(page_title='BTC · ETH 일봉 매매 신호',page_icon='₿',layout='wide')
     st.markdown("""<style>
-    .stApp{background:#eef3f8;color:#20324d;font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif}
+    .stApp{background:#dce9f8;color:#20324d;font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif}
     .block-container{max-width:1180px;padding:4.25rem 1.2rem 2rem}
     [data-testid="stVerticalBlock"]{gap:.65rem}
     h1{font-size:1.65rem!important;line-height:1.25!important;padding:.2rem 0!important;font-weight:750!important;color:#16345a}
     p,label{font-size:15px!important;line-height:1.5!important}
     [data-testid="stCaptionContainer"] p{font-size:13px!important;color:#526681!important}
-    [data-testid="stMetric"]{background:#fff;border:1px solid #d9e3ef;border-top:3px solid #4b78ae;padding:10px 14px;border-radius:10px}
+    [data-testid="stMetric"]{background:#fff;border:1px solid #b6cbe3;border-top:3px solid #4b78ae;padding:10px 14px;border-radius:10px}
     [data-testid="stMetricLabel"] p{font-size:13px!important;color:#526681}
     [data-testid="stMetricValue"],[data-testid="stMetricValue"] *{font-size:1.4rem!important;font-weight:700}
-    [data-testid="stExpander"]{background:#fff;border-color:#d9e3ef;border-radius:9px}
-    [data-testid="stPlotlyChart"]{background:#fff;border:1px solid #d9e3ef;border-radius:12px;overflow:hidden}
+    [data-testid="stExpander"]{background:#fff;border-color:#b6cbe3;border-radius:9px}
+    [data-testid="stPlotlyChart"]{background:#fff;border:1px solid #b6cbe3;border-radius:12px;overflow:hidden}
     .stButton button{min-height:40px;border-color:#245b92;border-radius:8px;font-weight:600;background:#245b92;color:#fff}
     .stButton button:hover{background:#194a7a;color:#fff;border-color:#194a7a}
     [data-baseweb="select"]>div{background:#fff;border-color:#c6d5e7;color:#20324d}
     [data-baseweb="tab"][aria-selected="true"]{color:#245b92!important}
     [data-baseweb="tab-highlight"]{background:#245b92!important}
-    [data-testid="stMetric"]{box-shadow:0 2px 7px rgba(27,54,88,.04)}
+    [data-testid="stMetric"]{box-shadow:0 3px 10px rgba(27,54,88,.09)}
     [data-testid="stExpander"] summary{color:#315375}
 
     [data-baseweb="tab"]{font-size:15px;font-weight:650}
