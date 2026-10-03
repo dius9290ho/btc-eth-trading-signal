@@ -103,6 +103,30 @@ class StrategyTests(unittest.TestCase):
         self.assertEqual(app.OPTIMIZATION_REPORT['KRW-ETH']['applied_params']['ema_period'],50)
         self.assertEqual(app.OPTIMIZATION_REPORT['KRW-BTC']['applied_params'].get('ema_period',0),0)
 
+    def test_daily_close_stop_priority_reset_and_execution(self):
+        z=frame([100,90.027,90,110,110])
+        z['open']=[100,100,70,90,110]
+        z['low']=[80,80,60,80,100]
+        z['candidate_sig']=['매수','관망(충돌)','매수','관망','관망']
+        z['sig']=z.candidate_sig;z['reason']=''
+        out=app.sequence_signals(z,stop_pct=10)
+        self.assertEqual(out.sig.tolist(),['매수','매도','매수','관망','관망'])
+        self.assertTrue(out.stop_trigger.iloc[1])
+        self.assertIn('10% 손절',out.reason.iloc[1])
+        self.assertAlmostEqual(out.stop_price.iloc[1],100*(1+.0003)*.9)
+        trades,eq,dd,holding=app.backtest(out)
+        self.assertEqual(len(trades),1)
+        self.assertLess(trades.iloc[0]['수익률(%)'],-29)
+        for n in [2,3,4]:
+            pd.testing.assert_frame_equal(out.iloc[:n],app.sequence_signals(z.iloc[:n],stop_pct=10))
+        # Low below stop alone does not trigger; only confirmed close does.
+        z.loc[1,'close']=95
+        self.assertFalse(app.sequence_signals(z,stop_pct=10).stop_trigger.iloc[1])
+        for market in ['KRW-BTC','KRW-ETH']:
+            with patch('app.signals',return_value=z) as mock:
+                app.active_signals(z,market)
+                self.assertEqual(mock.call_args.kwargs['stop_pct'],10.0)
+
     def test_next_open_costs_hold_and_pending_final(self):
         z=frame([100,110,120,130,140]);z['sig']=['매수','매도','관망','관망','매수']
         trades,eq,dd,holding=app.backtest(z,fee=.001,slip=.002)
