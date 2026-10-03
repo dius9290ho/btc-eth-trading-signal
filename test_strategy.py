@@ -11,6 +11,19 @@ def frame(prices):
 
 
 class StrategyTests(unittest.TestCase):
+    def test_v13_restores_previous_coin_rules(self):
+        rng=np.random.default_rng(51)
+        x=app.indicators(frame(100+np.cumsum(rng.normal(size=230))))
+        for market in ['KRW-BTC','KRW-ETH']:
+            profile=dict(app.EXTENDED_REPORT[market]['applied']['profile'])
+            profile.update(app.REFINEMENT_REPORT[market]['applied']['profile'])
+            expected=app.research_signals(x,market,profile) if profile else app.signals(x,stop_pct=10,**app.OPTIMIZATION_REPORT[market]['applied_params'])
+            actual=app.active_signals(x,market,strategy='v13')
+            pd.testing.assert_frame_equal(actual,expected)
+            pd.testing.assert_frame_equal(actual.iloc[:150],app.active_signals(x.iloc[:150],market,strategy='v13'))
+        with self.assertRaises(ValueError):
+            app.active_signals(x,'KRW-BTC',strategy='wrong')
+
     def test_active_dmi_warning_once_reset_and_no_buy_upgrade(self):
         x=frame([100]*12)
         x['PDI']=np.array([-2,2,3,-1,-3,-4,-5,2,3,-1,-4,-5])+10
@@ -283,10 +296,17 @@ class StrategyTests(unittest.TestCase):
             at=AppTest.from_file('app.py',default_timeout=30).run()
             self.assertEqual(len(at.exception),0);self.assertEqual(len(at.error),0)
             self.assertEqual(at.radio[0].value,'비트코인 (BTC)')
+            self.assertEqual(at.radio[1].value,'v14 · DMI·손절')
             for coin in ['비트코인 (BTC)','이더리움 (ETH)']:
                 for period in ['1개월','3개월','6개월','1년','2년','3년']:
                     at.radio[0].set_value(coin);at.selectbox[0].set_value(period);at.run()
                     self.assertEqual(len(at.exception),0);self.assertEqual(len(at.error),0)
+                for version in ['v13 · 복합지표','v14 · DMI·손절']:
+                    at.radio[1].set_value(version);at.run()
+                    self.assertEqual(len(at.exception),0);self.assertEqual(len(at.error),0)
+                    self.assertIn(version.split(' · ')[0]+' 적용', ' '.join(c.value for c in at.caption))
+                    self.assertNotIn('구분',at.dataframe[0].value.columns)
+                    self.assertEqual(list(at.dataframe[0].value.columns),['신호 확정시각(KST)','신호','판단 종가(원)','판단 근거'])
         app.st.cache_data.clear()
         with patch('requests.get',side_effect=app.requests.ConnectionError('test')):
             at=AppTest.from_file('app.py').run()
