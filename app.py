@@ -5,7 +5,7 @@ import requests
 import streamlit as st
 import plotly.graph_objects as go
 
-VERSION = '일봉 매매 신호 · 검증 최적화 · EMA 추가 검증 · 일봉 종가 10% 손절 · 4시간 모니터링 / v12'
+VERSION = '일봉 매매 신호 · 검증 최적화 · EMA 추가 검증 · 일봉 종가 10% 손절 · 4시간 모니터링 / v13'
 
 
 OPTIMIZATION_REPORT = {'KRW-BTC': {'params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'train': {'return': 59.504, 'dd': -9.5508, 'trades': 12}, 'validation': {'return': -5.4235, 'dd': -13.1394, 'trades': 6}, 'holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'baseline_holdout': {'return': 0.6368, 'dd': -16.0627, 'trades': 7}, 'full': {'return': 91.7306, 'dd': -13.4732, 'trades': 24}, 'baseline_full': {'return': -3.957, 'dd': -25.7951, 'trades': 27}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(-6.1246), 'dd': np.float64(-14.1909)}, 'buyhold_holdout': np.float64(-10.6101), 'applied_params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'applied_holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'decision': 'BTC: 비교 후 적용'}, 'KRW-ETH': {'params': {'window': 21, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'stoch_direction', 'min_adx': 15, 'exit_mode': 'confirmed'}, 'train': {'return': 80.6914, 'dd': -27.0236, 'trades': 8}, 'validation': {'return': 21.3897, 'dd': -24.613, 'trades': 6}, 'holdout': {'return': -7.5621, 'dd': -24.1031, 'trades': 5}, 'baseline_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'full': {'return': 104.1785, 'dd': -36.407, 'trades': 20}, 'baseline_full': {'return': 18.7774, 'dd': -42.651, 'trades': 24}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(6.6622), 'dd': np.float64(-29.9458)}, 'buyhold_holdout': np.float64(-13.2666), 'applied_params': {'window': 14, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'confirmed'}, 'applied_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'decision': 'ETH: 별도 평가에서 악화되어 기존 조건 유지'}}
@@ -374,6 +374,10 @@ def main():
     [data-testid="stMetric"]{box-shadow:0 3px 10px rgba(27,54,88,.09)}
     [data-testid="stExpander"] summary{color:#315375}
 
+    [data-testid="stRadio"] [role="radiogroup"]{display:flex;flex-wrap:nowrap;gap:12px}
+    [data-testid="stRadio"] [role="radiogroup"] label{flex:1;min-width:0;background:#fff;border:1px solid #9eb9d8;border-radius:9px;padding:10px 14px;cursor:pointer}
+    [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked){background:#245b92;color:#fff;border-color:#245b92}
+    [data-testid="stRadio"] [role="radiogroup"] label p{font-size:17px!important;font-weight:700!important}
     [data-baseweb="tab"]{font-size:15px;font-weight:650}
     @media(max-width:640px){
       .block-container{padding:4rem .65rem 1.5rem}
@@ -387,9 +391,9 @@ def main():
     }
     </style>""",unsafe_allow_html=True)
     st.title('BTC · ETH 일봉 매매')
-    st.caption('확정 일봉 · 4시간 확인 · 종가 10% 손절 · 강력 신호 · 매수 확인 강화 · v12')
-    a,b,c=st.columns([2,2,1])
-    coin=a.selectbox('코인',['Bitcoin (BTC)','Ethereum (ETH)'])
+    st.caption('확정 일봉 · 4시간 확인 · 종가 10% 손절 · 강력 신호 · 코인 선택 버튼 · v13')
+    coin=st.radio('코인',['비트코인 (BTC)','이더리움 (ETH)'],index=0,horizontal=True,label_visibility='collapsed',key='display_coin')
+    b,c=st.columns([3,1])
     period=b.selectbox('차트 기간',['1개월','3개월','6개월','1년','2년','3년'],index=1)
     if c.button('새로고침',use_container_width=True):
         daily_candles.clear()
