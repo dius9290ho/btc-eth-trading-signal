@@ -1,0 +1,907 @@
+{
+  "KRW-BTC": {
+    "params": {
+      "window": 30,
+      "min_price": 1.0,
+      "min_rsi": 3.0,
+      "div_confirm": "none",
+      "min_adx": 0,
+      "exit_mode": "dmi_early",
+      "ema_period": 200,
+      "ema_mode": "price",
+      "ema_exit": true
+    },
+    "train": {
+      "ret": 55.3473,
+      "dd": -12.5999,
+      "trades": 7
+    },
+    "validation": {
+      "ret": 5.3165,
+      "dd": -6.0457,
+      "trades": 4
+    },
+    "score": 5.265403,
+    "recent": {
+      "ret": 4.1036,
+      "dd": -1.2577,
+      "trades": 1
+    },
+    "previous": {
+      "ret": 30.0189,
+      "dd": -8.3138,
+      "trades": 5
+    },
+    "previous_validation": {
+      "ret": -5.4235,
+      "dd": -13.1394,
+      "trades": 6
+    },
+    "previous_params": {
+      "window": 30,
+      "min_price": 1.0,
+      "min_rsi": 3.0,
+      "div_confirm": "none",
+      "min_adx": 0,
+      "exit_mode": "dmi_early"
+    },
+    "applied_params": {
+      "window": 30,
+      "min_price": 1.0,
+      "min_rsi": 3.0,
+      "div_confirm": "none",
+      "min_adx": 0,
+      "exit_mode": "dmi_early"
+    },
+    "applied": {
+      "ret": 30.0189,
+      "dd": -8.3138,
+      "trades": 5
+    },
+    "decision": "개선 검증 미충족 · 기존 유지",
+    "candidates": 16,
+    "comparison_start": "2026-01-26 09:00:00+09:00",
+    "comparison_end": "2026-10-02 09:00:00+09:00",
+    "selection_end": "2026-01-25 09:00:00+09:00",
+    "rows": [
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 20,
+          "ema_mode": "price",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 57.9625,
+          "dd": -12.5971,
+          "trades": 7
+        },
+        "validation": {
+          "ret": -8.4192,
+          "dd": -15.6439,
+          "trades": 6
+        },
+        "score": -9.403965
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 20,
+          "ema_mode": "price",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 19.0271,
+          "dd": -12.5999,
+          "trades": 8
+        },
+        "validation": {
+          "ret": -2.1519,
+          "dd": -9.871,
+          "trades": 6
+        },
+        "score": -2.948729
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 20,
+          "ema_mode": "slope",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 57.9625,
+          "dd": -12.5971,
+          "trades": 7
+        },
+        "validation": {
+          "ret": -8.4192,
+          "dd": -15.6439,
+          "trades": 6
+        },
+        "score": -9.403965
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 20,
+          "ema_mode": "slope",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 19.0271,
+          "dd": -12.5999,
+          "trades": 8
+        },
+        "validation": {
+          "ret": -2.1519,
+          "dd": -9.871,
+          "trades": 6
+        },
+        "score": -2.948729
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 50,
+          "ema_mode": "price",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 60.2783,
+          "dd": -7.8245,
+          "trades": 5
+        },
+        "validation": {
+          "ret": -1.3438,
+          "dd": -9.1266,
+          "trades": 5
+        },
+        "score": -1.653677
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 50,
+          "ema_mode": "price",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 60.2783,
+          "dd": -7.8245,
+          "trades": 5
+        },
+        "validation": {
+          "ret": -0.5282,
+          "dd": -8.3754,
+          "trades": 5
+        },
+        "score": -0.7629570000000001
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 50,
+          "ema_mode": "slope",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 60.2783,
+          "dd": -7.8245,
+          "trades": 5
+        },
+        "validation": {
+          "ret": -1.3438,
+          "dd": -9.1266,
+          "trades": 5
+        },
+        "score": -1.653677
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 50,
+          "ema_mode": "slope",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 60.2783,
+          "dd": -7.8245,
+          "trades": 5
+        },
+        "validation": {
+          "ret": -0.5282,
+          "dd": -8.3754,
+          "trades": 5
+        },
+        "score": -0.7629570000000001
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 100,
+          "ema_mode": "price",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 41.8095,
+          "dd": -7.8245,
+          "trades": 4
+        },
+        "validation": {
+          "ret": 5.3165,
+          "dd": -6.0457,
+          "trades": 4
+        },
+        "score": 5.130025
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 100,
+          "ema_mode": "price",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 45.6897,
+          "dd": -7.8245,
+          "trades": 4
+        },
+        "validation": {
+          "ret": 5.3165,
+          "dd": -6.0457,
+          "trades": 4
+        },
+        "score": 5.168826999999999
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 100,
+          "ema_mode": "slope",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 41.8095,
+          "dd": -7.8245,
+          "trades": 4
+        },
+        "validation": {
+          "ret": 5.3165,
+          "dd": -6.0457,
+          "trades": 4
+        },
+        "score": 5.130025
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 100,
+          "ema_mode": "slope",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 45.6897,
+          "dd": -7.8245,
+          "trades": 4
+        },
+        "validation": {
+          "ret": 5.3165,
+          "dd": -6.0457,
+          "trades": 4
+        },
+        "score": 5.168826999999999
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 200,
+          "ema_mode": "price",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 51.764,
+          "dd": -12.5971,
+          "trades": 7
+        },
+        "validation": {
+          "ret": 5.3165,
+          "dd": -6.0457,
+          "trades": 4
+        },
+        "score": 5.22957
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 200,
+          "ema_mode": "price",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 55.3473,
+          "dd": -12.5999,
+          "trades": 7
+        },
+        "validation": {
+          "ret": 5.3165,
+          "dd": -6.0457,
+          "trades": 4
+        },
+        "score": 5.265403
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 200,
+          "ema_mode": "slope",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 51.764,
+          "dd": -12.5971,
+          "trades": 7
+        },
+        "validation": {
+          "ret": 5.3165,
+          "dd": -6.0457,
+          "trades": 4
+        },
+        "score": 5.22957
+      },
+      {
+        "params": {
+          "window": 30,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "dmi_early",
+          "ema_period": 200,
+          "ema_mode": "slope",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 55.3473,
+          "dd": -12.5999,
+          "trades": 7
+        },
+        "validation": {
+          "ret": 5.3165,
+          "dd": -6.0457,
+          "trades": 4
+        },
+        "score": 5.265403
+      }
+    ]
+  },
+  "KRW-ETH": {
+    "params": {
+      "window": 14,
+      "min_price": 1.0,
+      "min_rsi": 3.0,
+      "div_confirm": "none",
+      "min_adx": 0,
+      "exit_mode": "confirmed",
+      "ema_period": 50,
+      "ema_mode": "price",
+      "ema_exit": true
+    },
+    "train": {
+      "ret": 22.3504,
+      "dd": -8.381,
+      "trades": 2
+    },
+    "validation": {
+      "ret": 9.5783,
+      "dd": -28.0445,
+      "trades": 8
+    },
+    "score": 6.9973540000000005,
+    "recent": {
+      "ret": 8.33,
+      "dd": -5.4372,
+      "trades": 2
+    },
+    "previous": {
+      "ret": -0.5176,
+      "dd": -16.5655,
+      "trades": 6
+    },
+    "previous_validation": {
+      "ret": 6.6622,
+      "dd": -29.9458,
+      "trades": 7
+    },
+    "previous_params": {
+      "window": 14,
+      "min_price": 1.0,
+      "min_rsi": 3.0,
+      "div_confirm": "none",
+      "min_adx": 0,
+      "exit_mode": "confirmed"
+    },
+    "applied_params": {
+      "window": 14,
+      "min_price": 1.0,
+      "min_rsi": 3.0,
+      "div_confirm": "none",
+      "min_adx": 0,
+      "exit_mode": "confirmed",
+      "ema_period": 50,
+      "ema_mode": "price",
+      "ema_exit": true
+    },
+    "applied": {
+      "ret": 8.33,
+      "dd": -5.4372,
+      "trades": 2
+    },
+    "decision": "EMA 추가 적용",
+    "candidates": 16,
+    "comparison_start": "2026-01-26 09:00:00+09:00",
+    "comparison_end": "2026-10-02 09:00:00+09:00",
+    "selection_end": "2026-01-25 09:00:00+09:00",
+    "rows": [
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 20,
+          "ema_mode": "price",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 41.5351,
+          "dd": -10.9616,
+          "trades": 3
+        },
+        "validation": {
+          "ret": -2.3865,
+          "dd": -35.8889,
+          "trades": 7
+        },
+        "score": -5.560039
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 20,
+          "ema_mode": "price",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 40.7684,
+          "dd": -10.3605,
+          "trades": 3
+        },
+        "validation": {
+          "ret": 3.8096,
+          "dd": -31.8348,
+          "trades": 8
+        },
+        "score": 1.0338039999999997
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 20,
+          "ema_mode": "slope",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 41.5351,
+          "dd": -10.9616,
+          "trades": 3
+        },
+        "validation": {
+          "ret": -2.3865,
+          "dd": -35.8889,
+          "trades": 7
+        },
+        "score": -5.560039
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 20,
+          "ema_mode": "slope",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 40.7684,
+          "dd": -10.3605,
+          "trades": 3
+        },
+        "validation": {
+          "ret": 3.8096,
+          "dd": -31.8348,
+          "trades": 8
+        },
+        "score": 1.0338039999999997
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 50,
+          "ema_mode": "price",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 23.8472,
+          "dd": -8.381,
+          "trades": 2
+        },
+        "validation": {
+          "ret": -2.3865,
+          "dd": -35.8889,
+          "trades": 7
+        },
+        "score": -5.736918
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 50,
+          "ema_mode": "price",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 22.3504,
+          "dd": -8.381,
+          "trades": 2
+        },
+        "validation": {
+          "ret": 9.5783,
+          "dd": -28.0445,
+          "trades": 8
+        },
+        "score": 6.9973540000000005
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 50,
+          "ema_mode": "slope",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 23.8472,
+          "dd": -8.381,
+          "trades": 2
+        },
+        "validation": {
+          "ret": -2.3865,
+          "dd": -35.8889,
+          "trades": 7
+        },
+        "score": -5.736918
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 50,
+          "ema_mode": "slope",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 22.3504,
+          "dd": -8.381,
+          "trades": 2
+        },
+        "validation": {
+          "ret": 9.5783,
+          "dd": -28.0445,
+          "trades": 8
+        },
+        "score": 6.9973540000000005
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 100,
+          "ema_mode": "price",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 9.6712,
+          "dd": -8.381,
+          "trades": 1
+        },
+        "validation": {
+          "ret": 22.4816,
+          "dd": -24.9979,
+          "trades": 5
+        },
+        "score": 20.078522
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 100,
+          "ema_mode": "price",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 9.6712,
+          "dd": -8.381,
+          "trades": 1
+        },
+        "validation": {
+          "ret": 22.4816,
+          "dd": -24.9979,
+          "trades": 5
+        },
+        "score": 20.078522
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 100,
+          "ema_mode": "slope",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 9.6712,
+          "dd": -8.381,
+          "trades": 1
+        },
+        "validation": {
+          "ret": 22.4816,
+          "dd": -24.9979,
+          "trades": 5
+        },
+        "score": 20.078522
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 100,
+          "ema_mode": "slope",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 9.6712,
+          "dd": -8.381,
+          "trades": 1
+        },
+        "validation": {
+          "ret": 22.4816,
+          "dd": -24.9979,
+          "trades": 5
+        },
+        "score": 20.078522
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 200,
+          "ema_mode": "price",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 9.6712,
+          "dd": -8.381,
+          "trades": 1
+        },
+        "validation": {
+          "ret": -18.3479,
+          "dd": -24.9979,
+          "trades": 4
+        },
+        "score": -20.750978
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 200,
+          "ema_mode": "price",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 9.6712,
+          "dd": -8.381,
+          "trades": 1
+        },
+        "validation": {
+          "ret": -18.3479,
+          "dd": -24.9979,
+          "trades": 4
+        },
+        "score": -20.750978
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 200,
+          "ema_mode": "slope",
+          "ema_exit": false
+        },
+        "train": {
+          "ret": 9.6712,
+          "dd": -8.381,
+          "trades": 1
+        },
+        "validation": {
+          "ret": -18.3479,
+          "dd": -24.9979,
+          "trades": 4
+        },
+        "score": -20.750978
+      },
+      {
+        "params": {
+          "window": 14,
+          "min_price": 1.0,
+          "min_rsi": 3.0,
+          "div_confirm": "none",
+          "min_adx": 0,
+          "exit_mode": "confirmed",
+          "ema_period": 200,
+          "ema_mode": "slope",
+          "ema_exit": true
+        },
+        "train": {
+          "ret": 9.6712,
+          "dd": -8.381,
+          "trades": 1
+        },
+        "validation": {
+          "ret": -18.3479,
+          "dd": -24.9979,
+          "trades": 4
+        },
+        "score": -20.750978
+      }
+    ]
+  }
+}
