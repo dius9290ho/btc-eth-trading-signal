@@ -78,3 +78,7 @@ Annual snapshot 2025-10-03..2026-10-02: ETH return3.9008% ->6.7916%, MDD-6.7355%
 
 ## v13 visible coin selectors
 BTC and ETH names are visible together as horizontal touch controls, BTC selected on initial load. Selecting ETH switches the single chart, summary, history and backtest. Shared period selector includes3 years and daily history loads1500 candles. UI tests cover defaultBTC, both coins and all six periods; all16 tests pass. Strategy and notification conditions are unchanged.
+
+
+## DMI-only comparison
+Backtest tab compares current strategy with pure confirmed DMI14 crosses over1/2/3 calendar years. DMI-only excludes all other filters, ADX thresholds and the10% protective stop; no default or automation strategy change. Both start100%cash, fill at next daily open and include0.05%fee/side and0.03%slip/side; open positions valued net of liquidation costs. Cross requires valid present and previous DI values. Seventeen tests pass including pure DMI crosses, missing warmup, no protective stop and prefix causality.
