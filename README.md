@@ -23,3 +23,8 @@ pip install -r requirements.txt
 streamlit run app.py
 python -m unittest test_strategy -q
 ```
+
+## v3 display and signal sequencing
+All emitted buy/sell signals alternate across the entire loaded history, independent of trigger type. The first directional event can be either buy or sell; after buy, further buys are suppressed until sell, and vice versa. Conflicts do not change the last directional state. Raw candidates remain internal. Changing chart period does not reset the signal sequence.
+
+Main display: one large daily candlestick chart with buy/sell arrows only, default three-month view with longer periods selectable. RSI, stochastic and DMI remain in the calculations but their graphs and numeric values are hidden. History only shows alternating directional events. Signal state refers to this app's event history, not actual account holdings.
