@@ -11,6 +11,22 @@ def frame(prices):
 
 
 class StrategyTests(unittest.TestCase):
+    def test_refined_dmi_buy_gate_boundary_exit_and_causality(self):
+        raw=frame([100,101,102,101,100,103,104])
+        x=app.indicators(raw)
+        x['PDI']=[10,11.9,12,10,10,12,10];x['MDI']=10.;x['ADX']=25.
+        x['RSI']=50.;x['RSIsignal']=50.;x['SlowK']=50.;x['SlowD']=40.
+        x['buy_reason']=['','buy','buy','','','buy',''];x['sell_reason']=['','','','sell','','','sell']
+        x['candidate_sig']=['관망','매수','매수','매도','관망','매수','매도']
+        x['bull_state']=False;x['bear_state']=False
+        out=app.research_signals(x,'KRW-ETH',{'dmi_gap':2},base_frame=x)
+        self.assertEqual(out.sig.iloc[1],'관망')
+        self.assertEqual(out.sig.iloc[2],'매수')
+        self.assertEqual(out.sig.iloc[3],'매도')
+        self.assertIn('2포인트',out.reason.iloc[2])
+        for n in [3,4,6]:
+            pd.testing.assert_frame_equal(out.iloc[:n],app.research_signals(x.iloc[:n],'KRW-ETH',{'dmi_gap':2},base_frame=x.iloc[:n]))
+
     def test_wilder_seed_and_rsi_edges(self):
         self.assertTrue(app.indicators(frame(range(1,60))).RSI.iloc[:14].isna().all())
         self.assertEqual(app.indicators(frame(range(1,60))).RSI.iloc[-1],100)
@@ -128,7 +144,7 @@ class StrategyTests(unittest.TestCase):
             self.assertEqual(mock.call_args.kwargs['stop_pct'],10.0)
         with patch('app.research_signals',return_value=z) as mock:
             app.active_signals(z,'KRW-ETH')
-            self.assertEqual(mock.call_args.args[2],{'macd':'positive'})
+            self.assertEqual(mock.call_args.args[2],{'macd':'positive','dmi_gap':2})
 
     def test_strength_labels_preserve_events_and_stop_priority(self):
         z=frame([100,110,115,90,85])
