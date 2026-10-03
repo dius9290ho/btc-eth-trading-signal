@@ -11,6 +11,61 @@ def frame(prices):
 
 
 class StrategyTests(unittest.TestCase):
+    def test_intraday_same_day_reversal_once_upgrade_and_silent_baseline(self):
+        now=pd.Timestamp('2024-03-10 12:00',tz='Asia/Seoul')
+        raw=frame([100]*70)
+        z=raw.copy();z['PDI']=9.;z['MDI']=10.;z['ADX']=18.
+        z['RSI']=50.;z['SlowK']=50.;z['SlowD']=50.
+        z['sig']='관망';z['reason']='';z['stop_trigger']=False
+        z['buy_reason']='';z['sell_reason']=''
+        z['candidate_sig']='관망';z['signal_state']='매수 이후'
+        z['sim_entry_price']=np.nan;z['stop_price']=np.nan
+        z.loc[69,'PDI']=12.
+        with patch('app.active_signals',return_value=z):
+            first=app.intraday_monitor(raw,'KRW-BTC',now=now)
+            self.assertFalse(first['alert_event'])
+            repeat=app.intraday_monitor(raw,'KRW-BTC',previous=first['state'],now=now)
+            self.assertFalse(repeat['alert_event'])
+            z.loc[69,'PDI']=8.
+            sold=app.intraday_monitor(raw,'KRW-BTC',previous=first['state'],now=now)
+            self.assertTrue(sold['alert_event']);self.assertEqual(sold['signal_label'],'매도')
+            z.loc[69,'ADX']=22.
+            strong=app.intraday_monitor(raw,'KRW-BTC',previous=sold['state'],now=now)
+            self.assertTrue(strong['upgrade_warning']);self.assertEqual(strong['signal_label'],'강력매도')
+            again=app.intraday_monitor(raw,'KRW-BTC',previous=strong['state'],now=now)
+            self.assertFalse(again['alert_event'])
+            z.loc[69,'ADX']=18.
+            weaker=app.intraday_monitor(raw,'KRW-BTC',previous=again['state'],now=now)
+            z.loc[69,'ADX']=22.
+            self.assertFalse(app.intraday_monitor(raw,'KRW-BTC',previous=weaker['state'],now=now)['alert_event'])
+            z.loc[69,'PDI']=12.;z.loc[69,'ADX']=18.
+            rebuy=app.intraday_monitor(raw,'KRW-BTC',previous=again['state'],now=now)
+            self.assertTrue(rebuy['alert_event'])
+            z.loc[69,'ADX']=22.
+            self.assertFalse(app.intraday_monitor(raw,'KRW-BTC',previous=rebuy['state'],now=now)['alert_event'])
+            self.assertFalse(app.intraday_monitor(raw,'KRW-BTC',strategy='v13',previous=rebuy['state'],now=now)['alert_event'])
+
+    def test_intraday_stop_is_warning_and_v13_uses_candidate(self):
+        now=pd.Timestamp('2024-03-10 12:00',tz='Asia/Seoul')
+        raw=frame([100]*70)
+        z=raw.copy();z['PDI']=12.;z['MDI']=10.;z['ADX']=18.
+        z['candidate_sig']='관망';z['signal_state']='매수 이후'
+        z['sim_entry_price']=100.;z['stop_price']=90.
+        z['buy_reason']='';z['sell_reason']='';z['sig']='관망';z['reason']='';z['stop_trigger']=False
+        z['RSI']=50.;z['SlowK']=50.;z['SlowD']=50.
+        with patch('app.active_signals',return_value=z):
+            first=app.intraday_monitor(raw,'KRW-ETH',now=now)
+            z.loc[69,'close']=89.
+            stop=app.intraday_monitor(raw,'KRW-ETH',previous=first['state'],now=now)
+            self.assertTrue(stop['alert_event']);self.assertEqual(stop['signal_label'],'손절 경고')
+            self.assertFalse(app.intraday_monitor(raw,'KRW-ETH',previous=stop['state'],now=now)['alert_event'])
+            z.loc[69,'close']=100.;z.loc[69,'candidate_sig']='매도'
+            z.loc[69,'sell_reason']='test sell'
+            v13old=dict(first['state'],strategy='v13')
+            live=app.intraday_monitor(raw,'KRW-ETH',strategy='v13',previous=v13old,now=now)
+            self.assertTrue(live['alert_event']);self.assertEqual(live['state']['direction'],'매도')
+            self.assertEqual(live['reason'],'test sell')
+
     def test_v13_restores_previous_coin_rules(self):
         rng=np.random.default_rng(51)
         x=app.indicators(frame(100+np.cumsum(rng.normal(size=230))))
