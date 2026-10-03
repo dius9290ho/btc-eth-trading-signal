@@ -1,0 +1,850 @@
+{
+  "KRW-BTC": {
+    "baseline": {
+      "profile": {},
+      "train": {
+        "return": 59.504,
+        "dd": -9.5508,
+        "trades": 12
+      },
+      "validation": {
+        "return": -5.4235,
+        "dd": -13.1394,
+        "trades": 6
+      },
+      "recent": {
+        "return": 30.0189,
+        "dd": -8.3138,
+        "trades": 5
+      },
+      "year": {
+        "return": 16.7598,
+        "dd": -10.5429,
+        "trades": 7
+      },
+      "double_cost": {
+        "return": 15.4594,
+        "dd": -10.9712,
+        "trades": 7
+      }
+    },
+    "applied": {
+      "profile": {},
+      "train": {
+        "return": 59.504,
+        "dd": -9.5508,
+        "trades": 12
+      },
+      "validation": {
+        "return": -5.4235,
+        "dd": -13.1394,
+        "trades": 6
+      },
+      "recent": {
+        "return": 30.0189,
+        "dd": -8.3138,
+        "trades": 5
+      },
+      "year": {
+        "return": 16.7598,
+        "dd": -10.5429,
+        "trades": 7
+      },
+      "double_cost": {
+        "return": 15.4594,
+        "dd": -10.9712,
+        "trades": 7
+      }
+    },
+    "count": 12,
+    "rows": [
+      {
+        "profile": {},
+        "train": {
+          "return": 59.504,
+          "dd": -9.5508,
+          "trades": 12
+        },
+        "validation": {
+          "return": -5.4235,
+          "dd": -13.1394,
+          "trades": 6
+        },
+        "recent": {
+          "return": 30.0189,
+          "dd": -8.3138,
+          "trades": 5
+        },
+        "year": {
+          "return": 16.7598,
+          "dd": -10.5429,
+          "trades": 7
+        },
+        "double_cost": {
+          "return": 15.4594,
+          "dd": -10.9712,
+          "trades": 7
+        }
+      },
+      {
+        "profile": {
+          "dmi_gap": 2
+        },
+        "train": {
+          "return": 61.7815,
+          "dd": -7.8245,
+          "trades": 7
+        },
+        "validation": {
+          "return": -1.3438,
+          "dd": -9.1266,
+          "trades": 5
+        },
+        "recent": {
+          "return": 19.5364,
+          "dd": -8.3138,
+          "trades": 4
+        },
+        "year": {
+          "return": 15.6397,
+          "dd": -10.5646,
+          "trades": 5
+        },
+        "double_cost": {
+          "return": 14.7182,
+          "dd": -10.8503,
+          "trades": 5
+        }
+      },
+      {
+        "profile": {
+          "dmi_gap": 5
+        },
+        "train": {
+          "return": 45.4561,
+          "dd": -7.2355,
+          "trades": 6
+        },
+        "validation": {
+          "return": -1.3438,
+          "dd": -9.1266,
+          "trades": 5
+        },
+        "recent": {
+          "return": 19.5364,
+          "dd": -8.3138,
+          "trades": 4
+        },
+        "year": {
+          "return": 15.6397,
+          "dd": -10.5646,
+          "trades": 5
+        },
+        "double_cost": {
+          "return": 14.7182,
+          "dd": -10.8503,
+          "trades": 5
+        }
+      },
+      {
+        "profile": {
+          "adx": 15
+        },
+        "train": {
+          "return": -1.7967,
+          "dd": -9.5508,
+          "trades": 12
+        },
+        "validation": {
+          "return": -9.2604,
+          "dd": -13.1394,
+          "trades": 5
+        },
+        "recent": {
+          "return": 16.948,
+          "dd": -10.9594,
+          "trades": 5
+        },
+        "year": {
+          "return": 5.0218,
+          "dd": -10.9594,
+          "trades": 7
+        },
+        "double_cost": {
+          "return": 3.8522,
+          "dd": -11.2439,
+          "trades": 7
+        }
+      },
+      {
+        "profile": {
+          "adx": 20
+        },
+        "train": {
+          "return": -0.5408,
+          "dd": -9.2569,
+          "trades": 11
+        },
+        "validation": {
+          "return": -11.5221,
+          "dd": -13.1394,
+          "trades": 4
+        },
+        "recent": {
+          "return": 16.948,
+          "dd": -10.9594,
+          "trades": 5
+        },
+        "year": {
+          "return": 5.0218,
+          "dd": -10.9594,
+          "trades": 7
+        },
+        "double_cost": {
+          "return": 3.8522,
+          "dd": -11.2439,
+          "trades": 7
+        }
+      },
+      {
+        "profile": {
+          "macd_margin": 0.05
+        },
+        "train": {
+          "return": 76.9065,
+          "dd": -8.6581,
+          "trades": 9
+        },
+        "validation": {
+          "return": -5.4235,
+          "dd": -13.1394,
+          "trades": 6
+        },
+        "recent": {
+          "return": 24.4219,
+          "dd": -8.3138,
+          "trades": 5
+        },
+        "year": {
+          "return": 11.7336,
+          "dd": -10.5429,
+          "trades": 7
+        },
+        "double_cost": {
+          "return": 10.4891,
+          "dd": -10.9712,
+          "trades": 7
+        }
+      },
+      {
+        "profile": {
+          "macd_margin": 0.1
+        },
+        "train": {
+          "return": 76.9065,
+          "dd": -8.6581,
+          "trades": 9
+        },
+        "validation": {
+          "return": -5.4235,
+          "dd": -13.1394,
+          "trades": 6
+        },
+        "recent": {
+          "return": 24.4219,
+          "dd": -8.3138,
+          "trades": 5
+        },
+        "year": {
+          "return": 11.7336,
+          "dd": -10.5429,
+          "trades": 7
+        },
+        "double_cost": {
+          "return": 10.4891,
+          "dd": -10.9712,
+          "trades": 7
+        }
+      },
+      {
+        "profile": {
+          "macd_days": 2
+        },
+        "train": {
+          "return": 25.976,
+          "dd": -8.6581,
+          "trades": 9
+        },
+        "validation": {
+          "return": -5.4235,
+          "dd": -13.1394,
+          "trades": 6
+        },
+        "recent": {
+          "return": 24.8937,
+          "dd": -8.3138,
+          "trades": 4
+        },
+        "year": {
+          "return": 12.1573,
+          "dd": -10.5429,
+          "trades": 6
+        },
+        "double_cost": {
+          "return": 11.0857,
+          "dd": -10.9712,
+          "trades": 6
+        }
+      },
+      {
+        "profile": {
+          "rsi_rising": true
+        },
+        "train": {
+          "return": 55.2743,
+          "dd": -9.5508,
+          "trades": 12
+        },
+        "validation": {
+          "return": -7.7808,
+          "dd": -15.0559,
+          "trades": 5
+        },
+        "recent": {
+          "return": 19.6189,
+          "dd": -8.3138,
+          "trades": 5
+        },
+        "year": {
+          "return": 7.4203,
+          "dd": -13.4042,
+          "trades": 7
+        },
+        "double_cost": {
+          "return": 6.2239,
+          "dd": -13.9566,
+          "trades": 7
+        }
+      },
+      {
+        "profile": {
+          "volume": 0.8
+        },
+        "train": {
+          "return": 61.0031,
+          "dd": -12.5971,
+          "trades": 10
+        },
+        "validation": {
+          "return": -5.4235,
+          "dd": -13.1394,
+          "trades": 6
+        },
+        "recent": {
+          "return": 19.6189,
+          "dd": -8.3138,
+          "trades": 5
+        },
+        "year": {
+          "return": 7.4203,
+          "dd": -13.4042,
+          "trades": 7
+        },
+        "double_cost": {
+          "return": 6.2239,
+          "dd": -13.9566,
+          "trades": 7
+        }
+      },
+      {
+        "profile": {
+          "dmi_gap": 2,
+          "macd_days": 2
+        },
+        "train": {
+          "return": 21.322,
+          "dd": -8.0564,
+          "trades": 6
+        },
+        "validation": {
+          "return": -1.3438,
+          "dd": -9.1266,
+          "trades": 5
+        },
+        "recent": {
+          "return": 14.8244,
+          "dd": -8.3138,
+          "trades": 3
+        },
+        "year": {
+          "return": 11.0813,
+          "dd": -10.5646,
+          "trades": 4
+        },
+        "double_cost": {
+          "return": 10.3726,
+          "dd": -10.8503,
+          "trades": 4
+        }
+      },
+      {
+        "profile": {
+          "adx": 15,
+          "volume": 0.8
+        },
+        "train": {
+          "return": -0.8737,
+          "dd": -12.5971,
+          "trades": 10
+        },
+        "validation": {
+          "return": -9.2604,
+          "dd": -13.1394,
+          "trades": 5
+        },
+        "recent": {
+          "return": 7.5934,
+          "dd": -10.9594,
+          "trades": 5
+        },
+        "year": {
+          "return": -3.3787,
+          "dd": -15.9029,
+          "trades": 7
+        },
+        "double_cost": {
+          "return": -4.4549,
+          "dd": -16.573,
+          "trades": 7
+        }
+      }
+    ],
+    "start": "2025-10-03 09:00:00+09:00",
+    "end": "2026-10-02 09:00:00+09:00"
+  },
+  "KRW-ETH": {
+    "baseline": {
+      "profile": {},
+      "train": {
+        "return": 22.2409,
+        "dd": -8.8651,
+        "trades": 5
+      },
+      "validation": {
+        "return": 21.983,
+        "dd": -26.5807,
+        "trades": 6
+      },
+      "recent": {
+        "return": 8.33,
+        "dd": -5.4372,
+        "trades": 2
+      },
+      "year": {
+        "return": 3.9008,
+        "dd": -6.7355,
+        "trades": 4
+      },
+      "double_cost": {
+        "return": 3.0729,
+        "dd": -7.1821,
+        "trades": 4
+      }
+    },
+    "applied": {
+      "profile": {
+        "dmi_gap": 2
+      },
+      "train": {
+        "return": 22.2409,
+        "dd": -8.8651,
+        "trades": 5
+      },
+      "validation": {
+        "return": 25.3769,
+        "dd": -24.538,
+        "trades": 5
+      },
+      "recent": {
+        "return": 8.33,
+        "dd": -5.4372,
+        "trades": 2
+      },
+      "year": {
+        "return": 6.7916,
+        "dd": -6.41,
+        "trades": 3
+      },
+      "double_cost": {
+        "return": 6.1103,
+        "dd": -6.5597,
+        "trades": 3
+      }
+    },
+    "count": 12,
+    "rows": [
+      {
+        "profile": {},
+        "train": {
+          "return": 22.2409,
+          "dd": -8.8651,
+          "trades": 5
+        },
+        "validation": {
+          "return": 21.983,
+          "dd": -26.5807,
+          "trades": 6
+        },
+        "recent": {
+          "return": 8.33,
+          "dd": -5.4372,
+          "trades": 2
+        },
+        "year": {
+          "return": 3.9008,
+          "dd": -6.7355,
+          "trades": 4
+        },
+        "double_cost": {
+          "return": 3.0729,
+          "dd": -7.1821,
+          "trades": 4
+        }
+      },
+      {
+        "profile": {
+          "dmi_gap": 2
+        },
+        "train": {
+          "return": 22.2409,
+          "dd": -8.8651,
+          "trades": 5
+        },
+        "validation": {
+          "return": 25.3769,
+          "dd": -24.538,
+          "trades": 5
+        },
+        "recent": {
+          "return": 8.33,
+          "dd": -5.4372,
+          "trades": 2
+        },
+        "year": {
+          "return": 6.7916,
+          "dd": -6.41,
+          "trades": 3
+        },
+        "double_cost": {
+          "return": 6.1103,
+          "dd": -6.5597,
+          "trades": 3
+        }
+      },
+      {
+        "profile": {
+          "dmi_gap": 5
+        },
+        "train": {
+          "return": 28.3293,
+          "dd": -8.381,
+          "trades": 4
+        },
+        "validation": {
+          "return": -16.4178,
+          "dd": -24.538,
+          "trades": 4
+        },
+        "recent": {
+          "return": 8.33,
+          "dd": -5.4372,
+          "trades": 2
+        },
+        "year": {
+          "return": 6.7916,
+          "dd": -6.41,
+          "trades": 3
+        },
+        "double_cost": {
+          "return": 6.1103,
+          "dd": -6.5597,
+          "trades": 3
+        }
+      },
+      {
+        "profile": {
+          "adx": 15
+        },
+        "train": {
+          "return": 22.2409,
+          "dd": -8.8651,
+          "trades": 5
+        },
+        "validation": {
+          "return": -18.6803,
+          "dd": -26.5807,
+          "trades": 5
+        },
+        "recent": {
+          "return": 4.4698,
+          "dd": -3.9897,
+          "trades": 1
+        },
+        "year": {
+          "return": 0.1984,
+          "dd": -4.151,
+          "trades": 3
+        },
+        "double_cost": {
+          "return": -0.4408,
+          "dd": -4.4572,
+          "trades": 3
+        }
+      },
+      {
+        "profile": {
+          "adx": 20
+        },
+        "train": {
+          "return": -0.0895,
+          "dd": -6.3196,
+          "trades": 3
+        },
+        "validation": {
+          "return": -12.3516,
+          "dd": -20.8668,
+          "trades": 4
+        },
+        "recent": {
+          "return": 0.2264,
+          "dd": -3.2748,
+          "trades": 0
+        },
+        "year": {
+          "return": -3.8715,
+          "dd": -4.151,
+          "trades": 2
+        },
+        "double_cost": {
+          "return": -4.3318,
+          "dd": -4.4572,
+          "trades": 2
+        }
+      },
+      {
+        "profile": {
+          "macd_margin": 0.05
+        },
+        "train": {
+          "return": 22.2409,
+          "dd": -8.8651,
+          "trades": 5
+        },
+        "validation": {
+          "return": 21.983,
+          "dd": -26.5807,
+          "trades": 6
+        },
+        "recent": {
+          "return": 8.33,
+          "dd": -5.4372,
+          "trades": 2
+        },
+        "year": {
+          "return": 3.9008,
+          "dd": -6.7355,
+          "trades": 4
+        },
+        "double_cost": {
+          "return": 3.0729,
+          "dd": -7.1821,
+          "trades": 4
+        }
+      },
+      {
+        "profile": {
+          "macd_margin": 0.1
+        },
+        "train": {
+          "return": 22.2409,
+          "dd": -8.8651,
+          "trades": 5
+        },
+        "validation": {
+          "return": 29.5979,
+          "dd": -21.9974,
+          "trades": 5
+        },
+        "recent": {
+          "return": 8.33,
+          "dd": -5.4372,
+          "trades": 2
+        },
+        "year": {
+          "return": 3.9008,
+          "dd": -6.7355,
+          "trades": 4
+        },
+        "double_cost": {
+          "return": 3.0729,
+          "dd": -7.1821,
+          "trades": 4
+        }
+      },
+      {
+        "profile": {
+          "macd_days": 2
+        },
+        "train": {
+          "return": 11.4613,
+          "dd": -8.8651,
+          "trades": 4
+        },
+        "validation": {
+          "return": -12.3516,
+          "dd": -20.8668,
+          "trades": 4
+        },
+        "recent": {
+          "return": 8.0854,
+          "dd": -5.4372,
+          "trades": 2
+        },
+        "year": {
+          "return": 3.6661,
+          "dd": -6.7355,
+          "trades": 4
+        },
+        "double_cost": {
+          "return": 3.0048,
+          "dd": -7.1821,
+          "trades": 4
+        }
+      },
+      {
+        "profile": {
+          "rsi_rising": true
+        },
+        "train": {
+          "return": 25.6821,
+          "dd": -8.381,
+          "trades": 4
+        },
+        "validation": {
+          "return": 25.6397,
+          "dd": -17.1691,
+          "trades": 5
+        },
+        "recent": {
+          "return": 8.33,
+          "dd": -5.4372,
+          "trades": 2
+        },
+        "year": {
+          "return": 3.9008,
+          "dd": -6.7355,
+          "trades": 4
+        },
+        "double_cost": {
+          "return": 3.0729,
+          "dd": -7.1821,
+          "trades": 4
+        }
+      },
+      {
+        "profile": {
+          "volume": 0.8
+        },
+        "train": {
+          "return": 23.5851,
+          "dd": -8.8651,
+          "trades": 4
+        },
+        "validation": {
+          "return": 21.983,
+          "dd": -26.5807,
+          "trades": 6
+        },
+        "recent": {
+          "return": 8.33,
+          "dd": -5.4372,
+          "trades": 2
+        },
+        "year": {
+          "return": 3.9008,
+          "dd": -6.7355,
+          "trades": 4
+        },
+        "double_cost": {
+          "return": 3.0729,
+          "dd": -7.1821,
+          "trades": 4
+        }
+      },
+      {
+        "profile": {
+          "dmi_gap": 2,
+          "macd_days": 2
+        },
+        "train": {
+          "return": 11.4613,
+          "dd": -8.8651,
+          "trades": 4
+        },
+        "validation": {
+          "return": -9.913,
+          "dd": -18.6651,
+          "trades": 3
+        },
+        "recent": {
+          "return": 8.0854,
+          "dd": -5.4372,
+          "trades": 2
+        },
+        "year": {
+          "return": 6.5504,
+          "dd": -6.41,
+          "trades": 3
+        },
+        "double_cost": {
+          "return": 6.0402,
+          "dd": -6.5597,
+          "trades": 3
+        }
+      },
+      {
+        "profile": {
+          "adx": 15,
+          "volume": 0.8
+        },
+        "train": {
+          "return": 23.5851,
+          "dd": -8.8651,
+          "trades": 4
+        },
+        "validation": {
+          "return": -18.6803,
+          "dd": -26.5807,
+          "trades": 5
+        },
+        "recent": {
+          "return": 4.4698,
+          "dd": -3.9897,
+          "trades": 1
+        },
+        "year": {
+          "return": 0.1984,
+          "dd": -4.151,
+          "trades": 3
+        },
+        "double_cost": {
+          "return": -0.4408,
+          "dd": -4.4572,
+          "trades": 3
+        }
+      }
+    ],
+    "start": "2025-10-03 09:00:00+09:00",
+    "end": "2026-10-02 09:00:00+09:00"
+  }
+}
