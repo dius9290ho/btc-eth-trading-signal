@@ -115,10 +115,10 @@ def intraday_monitor(raw, market, strategy='v14', previous=None, now=None):
     phase_warned = bool(old.get('sell_warned',False)) if direction==old_direction else False
     buy_warned = bool(old.get('buy_warned',old.get('strong',False))) if direction==old_direction else False
     changed_direction = valid_previous and direction!=old_direction
-    upgrade = valid_previous and direction=='매도' and old_direction=='매도' and strong and not phase_warned
-    buy_upgrade = valid_previous and direction=='매수' and old_direction=='매수' and strong and not buy_warned
+    upgrade = valid_previous and direction=='매도' and old_direction=='매도' and strong and old.get('signal_label')!='강력매도' and not stop
+    buy_upgrade = valid_previous and direction=='매수' and old_direction=='매수' and strong and old.get('signal_label')!='강력매수'
     stop_upgrade = valid_previous and stop and not old.get('stop_trigger',False)
-    alert = bool(changed_direction or upgrade or buy_upgrade or stop_upgrade)
+    alert = bool(valid_previous and label!=old.get('signal_label'))
     if direction=='매수':
         phase_warned=False
         if strong:
@@ -127,7 +127,7 @@ def intraday_monitor(raw, market, strategy='v14', previous=None, now=None):
         phase_warned=True
     if direction!='매수':
         buy_warned=False
-    kind = '장중 손절 경고' if stop_upgrade or (stop and changed_direction) else '장중 강력매도 추가 경고' if upgrade else '장중 강력매수 추가 확인' if buy_upgrade else '장중 방향 전환' if changed_direction else ''
+    kind = '장중 손절 경고' if stop_upgrade or (stop and changed_direction) else '장중 강력매도 추가 경고' if upgrade else '장중 강력매수 추가 확인' if buy_upgrade else '장중 방향 전환' if changed_direction else '장중 신호 변화' if alert else ''
     state = {'market':market,'strategy':strategy,'checked_at':now.isoformat(),'candle_at':r.time.isoformat(),'direction':direction,'signal_label':label,'strong':strong,'sell_warned':phase_warned,'buy_warned':buy_warned,'stop_trigger':stop,'price':float(r.close),'is_provisional':provisional,'reason':reason}
     return {'state':state,'alert_event':alert,'event_kind':kind,'upgrade_warning':bool(upgrade),'previous_label':old.get('signal_label',''),'signal_label':label,'reason':reason}
 
@@ -508,7 +508,7 @@ def main():
     }
     </style>""",unsafe_allow_html=True)
     st.title('BTC · ETH 일봉 매매')
-    st.caption('일봉 지표 · 장중 1시간 확인 · 변화 시 알림 · 버전 선택')
+    st.caption('일봉 지표 · 모든 신호 1시간 확인 · 변화 시 알림 · 버전 선택')
     coin=st.radio('코인',['비트코인 (BTC)','이더리움 (ETH)'],index=0,horizontal=True,label_visibility='collapsed',key='display_coin')
     strategy_choice=st.radio('매매 판단 버전',['v14 · DMI·손절','v13 · 복합지표'],index=0,horizontal=True,key='display_strategy')
     strategy='v14' if strategy_choice.startswith('v14') else 'v13'
@@ -523,15 +523,15 @@ def main():
             st.markdown('**일봉 DMI(14) 교차 + 종가 10% 손절 · BTC/ETH 동일 조건**')
             st.markdown('**매수:** +DI가 −DI를 상향교차. **매도:** +DI가 −DI를 하향교차하거나 확정 일봉 종가가 모의 매수가의 90% 이하. 매수·매도는 번갈아 표시하며 손절 후에는 다음 DMI 상향교차까지 대기합니다.')
             st.caption('강력매수·강력매도: 신호 방향의 DI가 우세하고, ADX(14)가 20 이상이면서 전일보다 상승하고, 우세 DI의 격차도 전일보다 확대될 때 표시합니다. ADX는 DMI의 추세 강도 값입니다. 이 조건은 표시·경고에만 사용하며 교차 매매를 제한하지 않습니다. 강력은 조건 일치도이며 적중률을 뜻하지 않습니다.')
-            st.caption('일반 매도 이후 DMI 강력매도 조건을 처음 충족하면 다음 매수 전까지 추가 경고를 한 번 알립니다. 최초 매도 시 이미 강력 조건이면 재경고하지 않습니다. 이미 매도했다면 추가 거래가 필요 없습니다. 확정 이력에서는 매수 이후 강력매수 추가 신호를 만들지 않습니다. 장중 모니터링에서는 일반 매수 후 강력매수 강화도 한 번 알립니다. 이미 매수한 경우 추가 매수 지시가 아닙니다.')
+            st.caption('확정 신호 이력에서는 일반 매도 이후 DMI 강력매도 조건을 처음 충족하면 다음 매수 전까지 추가 경고를 한 번 알립니다. 최초 매도 시 이미 강력 조건이면 재경고하지 않습니다. 이미 매도했다면 추가 거래가 필요 없습니다. 장중 알림은 강력매도 약화·재강화도 매번 변화 시 알립니다. 확정 이력에서는 매수 이후 강력매수 추가 신호를 만들지 않습니다. 장중 모니터링에서는 강력매수 강화와 약화 등 모든 신호 변화를 알립니다. 이미 매수한 경우 추가 매수 지시가 아닙니다.')
             st.caption('손절은 매수 신호 다음 일봉 시가에 슬리피지 0.03%를 반영한 모의 매수가 기준입니다. 확정 일봉 종가로 판단하고 다음 일봉 시가에 모의 체결하므로 실제 손실이 10%를 넘을 수 있습니다. 실제 계좌 매수가와 연동되지 않습니다.')
             st.caption('RSI·스토캐스틱·EMA·MACD·거래량은 현재 매매 및 강력 신호 판단에 사용하지 않습니다.')
         else:
             st.markdown('**v13 · 기존 복합지표 + 종가 10% 손절**')
             st.caption('DMI(14), RSI(14) 다이버전스, Slow Stochastic(30/10/10) 조합. BTC는 30일 다이버전스와 DMI 하향교차 조기청산, ETH는 14일 다이버전스와 EMA(50), MACD 히스토그램 양수 및 +DI − −DI ≥ 2포인트 매수 확인을 적용합니다. v13의 기존 매매 조건을 그대로 사용합니다.')
-            st.caption('강력 신호는 RSI 방향·DMI 방향(ADX≥20)·스토캐스틱 방향이 일치할 때 표시합니다. 일반 매도 이후 강력매도 조건이 강화되면 다음 매수 전까지 추가 경고 1회. 확정 이력에서는 매수 이후 강력매수 추가 신호를 만들지 않습니다. 장중 모니터링에서는 일반 매수 후 강력매수 강화도 한 번 알립니다. 이미 매수한 경우 추가 매수 지시가 아닙니다.')
+            st.caption('강력 신호는 RSI 방향·DMI 방향(ADX≥20)·스토캐스틱 방향이 일치할 때 표시합니다. 일반 매도 이후 강력매도 조건이 강화되면 다음 매수 전까지 추가 경고 1회. 장중 알림은 강력매도 약화·재강화도 매번 변화 시 알립니다. 확정 이력에서는 매수 이후 강력매수 추가 신호를 만들지 않습니다. 장중 모니터링에서는 강력매수 강화와 약화 등 모든 신호 변화를 알립니다. 이미 매수한 경우 추가 매수 지시가 아닙니다.')
             st.caption('손절은 확정 일봉 종가가 모의 매수가의 90% 이하일 때 판단합니다. 실제 계좌와 연동되지 않으며 실제 손실이 10%를 넘을 수 있습니다.')
-        st.caption('장중 판단은 진행 중인 일봉의 현재가·고가·저가로 1시간마다 재계산합니다. 신호 방향 변화·강력매수/강력매도 강화·손절 기준 도달 시만 알림을 내며 최초 조회는 기준 상태만 저장합니다. 확정 이력·백테스트는 마감 일봉만 사용합니다. 앱 밖 예약 알림은 v14 기준입니다.')
+        st.caption('장중 판단은 진행 중인 일봉의 현재가·고가·저가로 1시간마다 재계산합니다. 매수·강력매수·매도·강력매도·관망·손절 경고가 직전 확인과 달라지면 알림을 내며 최초 조회는 기준 상태만 저장합니다. 확정 이력·백테스트는 마감 일봉만 사용합니다. 앱 밖 예약 알림은 v14 기준입니다.')
     market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
     try:
         with st.spinner('일봉 데이터를 분석하고 있습니다…'):
