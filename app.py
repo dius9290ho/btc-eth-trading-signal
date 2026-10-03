@@ -5,10 +5,15 @@ import requests
 import streamlit as st
 import plotly.graph_objects as go
 
-VERSION = '일봉 매매 신호 · 검증 최적화 · 4시간 모니터링 / v5'
+VERSION = '일봉 매매 신호 · 검증 최적화 · EMA 추가 검증 · 4시간 모니터링 / v6'
 
 
 OPTIMIZATION_REPORT = {'KRW-BTC': {'params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'train': {'return': 59.504, 'dd': -9.5508, 'trades': 12}, 'validation': {'return': -5.4235, 'dd': -13.1394, 'trades': 6}, 'holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'baseline_holdout': {'return': 0.6368, 'dd': -16.0627, 'trades': 7}, 'full': {'return': 91.7306, 'dd': -13.4732, 'trades': 24}, 'baseline_full': {'return': -3.957, 'dd': -25.7951, 'trades': 27}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(-6.1246), 'dd': np.float64(-14.1909)}, 'buyhold_holdout': np.float64(-10.6101), 'applied_params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'applied_holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'decision': 'BTC: 비교 후 적용'}, 'KRW-ETH': {'params': {'window': 21, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'stoch_direction', 'min_adx': 15, 'exit_mode': 'confirmed'}, 'train': {'return': 80.6914, 'dd': -27.0236, 'trades': 8}, 'validation': {'return': 21.3897, 'dd': -24.613, 'trades': 6}, 'holdout': {'return': -7.5621, 'dd': -24.1031, 'trades': 5}, 'baseline_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'full': {'return': 104.1785, 'dd': -36.407, 'trades': 20}, 'baseline_full': {'return': 18.7774, 'dd': -42.651, 'trades': 24}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(6.6622), 'dd': np.float64(-29.9458)}, 'buyhold_holdout': np.float64(-13.2666), 'applied_params': {'window': 14, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'confirmed'}, 'applied_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'decision': 'ETH: 별도 평가에서 악화되어 기존 조건 유지'}}
+
+EMA_REPORT = {'KRW-BTC': {'params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early', 'ema_period': 200, 'ema_mode': 'price', 'ema_exit': True}, 'train': {'ret': 55.3473, 'dd': -12.5999, 'trades': 7}, 'validation': {'ret': 5.3165, 'dd': -6.0457, 'trades': 4}, 'score': 5.265403, 'recent': {'ret': 4.1036, 'dd': -1.2577, 'trades': 1}, 'previous': {'ret': 30.0189, 'dd': -8.3138, 'trades': 5}, 'previous_validation': {'ret': -5.4235, 'dd': -13.1394, 'trades': 6}, 'previous_params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'applied_params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'applied': {'ret': 30.0189, 'dd': -8.3138, 'trades': 5}, 'decision': '개선 검증 미충족 · 기존 유지', 'candidates': 16, 'comparison_start': '2026-01-26 09:00:00+09:00', 'comparison_end': '2026-10-02 09:00:00+09:00', 'selection_end': '2026-01-25 09:00:00+09:00'}, 'KRW-ETH': {'params': {'window': 14, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'confirmed', 'ema_period': 50, 'ema_mode': 'price', 'ema_exit': True}, 'train': {'ret': 22.3504, 'dd': -8.381, 'trades': 2}, 'validation': {'ret': 9.5783, 'dd': -28.0445, 'trades': 8}, 'score': 6.9973540000000005, 'recent': {'ret': 8.33, 'dd': -5.4372, 'trades': 2}, 'previous': {'ret': -0.5176, 'dd': -16.5655, 'trades': 6}, 'previous_validation': {'ret': 6.6622, 'dd': -29.9458, 'trades': 7}, 'previous_params': {'window': 14, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'confirmed'}, 'applied_params': {'window': 14, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'confirmed', 'ema_period': 50, 'ema_mode': 'price', 'ema_exit': True}, 'applied': {'ret': 8.33, 'dd': -5.4372, 'trades': 2}, 'decision': 'EMA 추가 적용', 'candidates': 16, 'comparison_start': '2026-01-26 09:00:00+09:00', 'comparison_end': '2026-10-02 09:00:00+09:00', 'selection_end': '2026-01-25 09:00:00+09:00'}}
+for _market, _result in EMA_REPORT.items():
+    OPTIMIZATION_REPORT[_market]['applied_params'] = _result['applied_params']
+    OPTIMIZATION_REPORT[_market]['applied_holdout'] = {'return': _result['applied']['ret'], 'dd': _result['applied']['dd'], 'trades': _result['applied']['trades']}
 
 def active_signals(x, market):
     return signals(x, **OPTIMIZATION_REPORT[market]["applied_params"])
@@ -57,9 +62,14 @@ def indicators(raw, period=14, stoch_period=30, smooth_k=10, smooth_d=10):
     return x
 
 
-def signals(x, window=14, min_price=1.0, min_rsi=3.0, div_confirm='none', min_adx=0, exit_mode='confirmed'):
+def signals(x, window=14, min_price=1.0, min_rsi=3.0, div_confirm='none', min_adx=0, exit_mode='confirmed', ema_period=0, ema_mode='price', ema_exit=False):
     """Trailing regression divergence; no future pivots or retroactive signals."""
     z = x.copy()
+    if ema_period:
+        z['EMA'] = z.close.ewm(span=ema_period, adjust=False, min_periods=ema_period).mean()
+        z['EMAready'] = z.EMA.notna() & z.EMA.shift().notna()
+        z['EMAentry'] = z.EMAready & ((z.close > z.EMA) if ema_mode == 'price' else (z.EMA > z.EMA.shift()))
+        z['EMAdown'] = z.EMAready & (z.close < z.EMA) & (z.close.shift() >= z.EMA.shift())
     axis = np.arange(window, dtype=float)
     centered = axis-axis.mean()
     def slope(values):
@@ -101,6 +111,13 @@ def signals(x, window=14, min_price=1.0, min_rsi=3.0, div_confirm='none', min_ad
             buys.append('Slow %K/%D 상향교차 + DMI 상승 방향')
         if r.StochDown and r.PDI < r.MDI:
             sells.append('Slow %K/%D 하향교차 + DMI 하락 방향')
+        if ema_period:
+            if not r.EMAentry:
+                buys = []
+            elif buys:
+                buys.append(f'EMA({ema_period}) '+('상회 확인' if ema_mode == 'price' else '상승 확인'))
+            if ema_exit and r.EMAdown:
+                sells.append(f'EMA({ema_period}) 종가 하향돌파')
         z.loc[i, 'buy_reason'] = ' / '.join(buys)
         z.loc[i, 'sell_reason'] = ' / '.join(sells)
     buy, sell = z.buy_reason.ne(''), z.sell_reason.ne('')
@@ -218,6 +235,11 @@ def main():
         selected=OPTIMIZATION_REPORT[market]['applied_params']
         st.caption(f'적용 조건: 다이버전스 {selected["window"]}일 · '+('DMI 하향교차 조기청산' if selected['exit_mode']=='dmi_early' else '지표 방향 확인 청산'))
         st.markdown('**Slow Stochastic: 기간 30 · %K 평활 10 · %D 평활 10(SMA). DMI(14) · RSI(14), RSI 신호선(9).**')
+        if selected.get('ema_period',0):
+            st.caption(f"추가 지표: EMA({selected['ema_period']}) · 종가가 EMA 위일 때만 기존 매수 허용 · 종가 하향돌파 추가 매도")
+        else:
+            st.caption('EMA 추가 실험에서 BTC 수익률이 감소하여 기본 조건에서는 적용하지 않습니다. 수동 조건에서 사용할 수 있습니다.')
+        use_ema=st.checkbox('수동 조건: EMA(50) 매수 필터 및 하향돌파 매도',value=True)
         window=st.number_input('다이버전스 추세 비교 일봉 수',min_value=5,max_value=60,value=14)
         c1,c2=st.columns(2)
         min_price=c1.number_input('추세 종가 변화 최소(%)',min_value=0.0,max_value=20.0,value=1.0,step=0.5)
@@ -230,7 +252,7 @@ def main():
         closed=closed_candles(raw)
         if len(closed) < max(60,int(window)+14):
             st.warning('지표 계산에 필요한 확정 일봉이 부족합니다.'); return
-        z=active_signals(indicators(closed),market) if mode=='검증 후 선택한 조건' else signals(indicators(closed),int(window),float(min_price),float(min_rsi))
+        z=active_signals(indicators(closed),market) if mode=='검증 후 선택한 조건' else signals(indicators(closed),int(window),float(min_price),float(min_rsi),ema_period=50 if use_ema else 0,ema_exit=use_ema)
         last=z.iloc[-1]; current=raw.iloc[-1]
         checked_at=pd.Timestamp.now(tz='Asia/Seoul')
         st.caption(f'4시간 자동 모니터링 · 이번 확인: {checked_at:%Y-%m-%d %H:%M} KST · 다음 확인: {checked_at+pd.Timedelta(hours=4):%m-%d %H:%M} KST')
@@ -264,15 +286,17 @@ def main():
                 st.caption('신호 이력은 매수·매도 순서로 번갈아 표시됩니다. 최근 신호 상태는 앱의 신호 이력 기준이며 실제 계좌와 연동되지 않습니다.')
         with tab2:
             report=OPTIMIZATION_REPORT[market]
-            st.markdown('**별도 평가 기간의 비교 결과**')
-            st.caption(f'{report["holdout_start"][:10]} ~ {report["holdout_end"][:10]} · 수수료·슬리피지 포함. 이 기간의 수익률은 조건 순위 선정에 사용하지 않았으며, 채택 여부 점검에 사용했습니다.')
+            ema=EMA_REPORT[market]
+            st.markdown('**EMA 1개 추가: 과거 비교 결과**')
+            st.caption(f'{report["holdout_start"][:10]} ~ {report["holdout_end"][:10]} · 수수료·슬리피지 포함. 기존 최적화에서도 사용한 데이터로, 완전히 새로운 검증 구간은 아닙니다.')
             comparison=pd.DataFrame([
-                {'조건':'기존','수익률(%)':report['baseline_holdout']['return'],'최대 낙폭(%)':report['baseline_holdout']['dd']},
-                {'조건':'실험 후보','수익률(%)':report['holdout']['return'],'최대 낙폭(%)':report['holdout']['dd']},
+                {'조건':'직전 적용(v5)','수익률(%)':ema['previous']['ret'],'최대 낙폭(%)':ema['previous']['dd']},
+                {'조건':f'EMA({ema["params"]["ema_period"]}) 실험','수익률(%)':ema['recent']['ret'],'최대 낙폭(%)':ema['recent']['dd']},
                 {'조건':'실제 적용','수익률(%)':report['applied_holdout']['return'],'최대 낙폭(%)':report['applied_holdout']['dd']},
                 {'조건':'단순 보유','수익률(%)':report['buyhold_holdout'],'최대 낙폭(%)':np.nan}])
             st.dataframe(comparison,use_container_width=True,hide_index=True)
-            st.caption(report['decision']+' · 아래 선택 기간 결과에는 조건 선정에 사용한 과거 구간이 포함될 수 있습니다.')
+            st.caption(ema['decision']+f" · EMA 조건 {ema['candidates']}개 비교 · 비교 기간 완료 거래 {ema['applied']['trades']}회")
+            st.caption('조건은 앞선 학습·검증 기간으로 선정하고, 이후 과거 구간 비교를 채택 판단에도 사용했습니다. 표본이 적고 데이터가 재사용되어 과적합 가능성이 있습니다. 아래 선택 기간에도 선정 데이터가 포함될 수 있습니다.')
             st.caption('설정한 차트 기간의 시작은 현금 100%로 가정합니다. 지표는 이전 데이터로 계산하고, 확정 신호 다음 일봉 시가에 체결합니다. 최소 보유 24시간 · 거래당 수수료 0.05% · 슬리피지 0.03%.')
             btdata=z[z.time >= z.time.max()-pd.Timedelta(days=days)].reset_index(drop=True)
             trades,equity,dd,holding=backtest(btdata)
