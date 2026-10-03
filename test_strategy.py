@@ -87,6 +87,22 @@ class StrategyTests(unittest.TestCase):
         self.assertEqual(app.OPTIMIZATION_REPORT['KRW-ETH']['applied_params']['window'],14)
         self.assertEqual(app.OPTIMIZATION_REPORT['KRW-BTC']['applied_params']['exit_mode'],'dmi_early')
 
+    def test_ema_filter_exit_and_warmup(self):
+        z=frame([100,100,90,85,110,95,90])
+        z['RSI']=50.;z['PDI']=[10,10,20,10,20,20,20];z['MDI']=15.
+        z['SlowK']=[40,40,60,40,60,60,60];z['SlowD']=50.
+        out=app.signals(z,ema_period=3,ema_exit=True)
+        # Falling below EMA blocks otherwise valid DMI buys, without blocking sells.
+        self.assertEqual(out.sig.iloc[2],'관망')
+        self.assertEqual(out.sig.iloc[3],'매도')
+        self.assertEqual(out.sig.iloc[4],'매수')
+        self.assertEqual(out.sig.iloc[5],'매도')
+        self.assertIn('EMA(3)',out.reason.iloc[5])
+        self.assertTrue(out.EMA.iloc[:2].isna().all())
+        pd.testing.assert_series_equal(out.EMA,z.close.ewm(span=3,adjust=False,min_periods=3).mean(),check_names=False)
+        self.assertEqual(app.OPTIMIZATION_REPORT['KRW-ETH']['applied_params']['ema_period'],50)
+        self.assertEqual(app.OPTIMIZATION_REPORT['KRW-BTC']['applied_params'].get('ema_period',0),0)
+
     def test_next_open_costs_hold_and_pending_final(self):
         z=frame([100,110,120,130,140]);z['sig']=['매수','매도','관망','관망','매수']
         trades,eq,dd,holding=app.backtest(z,fee=.001,slip=.002)
