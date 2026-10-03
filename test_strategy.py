@@ -146,6 +146,26 @@ class StrategyTests(unittest.TestCase):
         z.loc[3,'bull_state']=True
         self.assertEqual(app.label_strength(z).signal_label.iloc[3],'매도')
 
+    def test_sell_upgrade_warns_once_and_resets_only_on_buy(self):
+        z=frame([100]*9)
+        z['RSI']=[60,55,50,45,40,50,45,40,35];z['RSIsignal']=60.
+        z['PDI']=10.;z['MDI']=20.;z['ADX']=[10,10,30,30,30,30,10,30,30]
+        z['SlowK']=[70,65,60,55,50,45,40,35,30];z['SlowD']=80.
+        z['bull_state']=False;z['bear_state']=False;z['stop_trigger']=False
+        z['sig']=['관망','매도','관망','관망','관망','매수','매도','관망','관망'];z['reason']='기존'
+        out=app.label_strength(z)
+        self.assertEqual(out[out.upgrade_warning].index.tolist(),[2,7])
+        self.assertEqual(out.signal_label.iloc[2],'강력매도 · 추가 경고')
+        self.assertTrue(out.alert_event.iloc[2])
+        self.assertEqual(out.event_kind.iloc[2],'추가 매도 경고')
+        pd.testing.assert_series_equal(out.sig,z.sig)
+        for n in [2,3,6,8]:
+            pd.testing.assert_frame_equal(out.iloc[:n],app.label_strength(z.iloc[:n]))
+        z.loc[1,'ADX']=30
+        self.assertFalse(app.label_strength(z).upgrade_warning.iloc[2])
+        z.loc[2,'bull_state']=True
+        self.assertFalse(app.label_strength(z).upgrade_warning.iloc[2])
+
     def test_next_open_costs_hold_and_pending_final(self):
         z=frame([100,110,120,130,140]);z['sig']=['매수','매도','관망','관망','매수']
         trades,eq,dd,holding=app.backtest(z,fee=.001,slip=.002)
