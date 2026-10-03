@@ -1,0 +1,136 @@
+{
+  "KRW-BTC": {
+    "params": {
+      "window": 30,
+      "min_price": 1.0,
+      "min_rsi": 3.0,
+      "div_confirm": "none",
+      "min_adx": 0,
+      "exit_mode": "dmi_early"
+    },
+    "train": {
+      "return": 59.504,
+      "dd": -9.5508,
+      "trades": 12
+    },
+    "validation": {
+      "return": -5.4235,
+      "dd": -13.1394,
+      "trades": 6
+    },
+    "holdout": {
+      "return": 30.0189,
+      "dd": -8.3138,
+      "trades": 5
+    },
+    "baseline_holdout": {
+      "return": 0.6368,
+      "dd": -16.0627,
+      "trades": 7
+    },
+    "full": {
+      "return": 91.7306,
+      "dd": -13.4732,
+      "trades": 24
+    },
+    "baseline_full": {
+      "return": -3.957,
+      "dd": -25.7951,
+      "trades": 27
+    },
+    "candidates": 32,
+    "train_start": "2024-03-08 09:00:00+09:00",
+    "train_end": "2025-05-20 09:00:00+09:00",
+    "validation_start": "2025-05-21 09:00:00+09:00",
+    "validation_end": "2026-01-25 09:00:00+09:00",
+    "holdout_start": "2026-01-26 09:00:00+09:00",
+    "holdout_end": "2026-10-02 09:00:00+09:00",
+    "fit_end": "2026-01-25 09:00:00+09:00",
+    "baseline_validation": {
+      "return": -6.1246,
+      "dd": -14.1909
+    },
+    "buyhold_holdout": -10.6101,
+    "applied_params": {
+      "window": 30,
+      "min_price": 1.0,
+      "min_rsi": 3.0,
+      "div_confirm": "none",
+      "min_adx": 0,
+      "exit_mode": "dmi_early"
+    },
+    "applied_holdout": {
+      "return": 30.0189,
+      "dd": -8.3138,
+      "trades": 5
+    },
+    "decision": "BTC: 비교 후 적용"
+  },
+  "KRW-ETH": {
+    "params": {
+      "window": 21,
+      "min_price": 1.0,
+      "min_rsi": 3.0,
+      "div_confirm": "stoch_direction",
+      "min_adx": 15,
+      "exit_mode": "confirmed"
+    },
+    "train": {
+      "return": 80.6914,
+      "dd": -27.0236,
+      "trades": 8
+    },
+    "validation": {
+      "return": 21.3897,
+      "dd": -24.613,
+      "trades": 6
+    },
+    "holdout": {
+      "return": -7.5621,
+      "dd": -24.1031,
+      "trades": 5
+    },
+    "baseline_holdout": {
+      "return": -0.5176,
+      "dd": -16.5655,
+      "trades": 6
+    },
+    "full": {
+      "return": 104.1785,
+      "dd": -36.407,
+      "trades": 20
+    },
+    "baseline_full": {
+      "return": 18.7774,
+      "dd": -42.651,
+      "trades": 24
+    },
+    "candidates": 32,
+    "train_start": "2024-03-08 09:00:00+09:00",
+    "train_end": "2025-05-20 09:00:00+09:00",
+    "validation_start": "2025-05-21 09:00:00+09:00",
+    "validation_end": "2026-01-25 09:00:00+09:00",
+    "holdout_start": "2026-01-26 09:00:00+09:00",
+    "holdout_end": "2026-10-02 09:00:00+09:00",
+    "fit_end": "2026-01-25 09:00:00+09:00",
+    "baseline_validation": {
+      "return": 6.6622,
+      "dd": -29.9458
+    },
+    "buyhold_holdout": -13.2666,
+    "applied_params": {
+      "window": 14,
+      "min_price": 1.0,
+      "min_rsi": 3.0,
+      "div_confirm": "none",
+      "min_adx": 0,
+      "exit_mode": "confirmed"
+    },
+    "applied_holdout": {
+      "return": -0.5176,
+      "dd": -16.5655,
+      "trades": 6
+    },
+    "decision": "ETH: 별도 평가에서 악화되어 기존 조건 유지"
+  }
+}
