@@ -128,6 +128,24 @@ class StrategyTests(unittest.TestCase):
                 app.active_signals(z,market)
                 self.assertEqual(mock.call_args.kwargs['stop_pct'],10.0)
 
+    def test_strength_labels_preserve_events_and_stop_priority(self):
+        z=frame([100,110,115,90,85])
+        z['RSI']=[45,50,55,40,35];z['RSIsignal']=45.
+        z['PDI']=[20,20,20,10,10];z['MDI']=[10,10,10,20,20];z['ADX']=30.
+        z['SlowK']=[40,60,65,30,20];z['SlowD']=40.
+        z['bull_state']=False;z['bear_state']=False
+        z['sig']=['관망','매수','관망','매도','매도'];z['reason']='조건'
+        z['stop_trigger']=[False,False,False,False,True]
+        out=app.label_strength(z)
+        self.assertEqual(out.signal_label.tolist(),['관망','강력매수','관망','강력매도','손절 매도'])
+        pd.testing.assert_series_equal(out.sig,z.sig)
+        for n in [2,3,4]:
+            pd.testing.assert_frame_equal(out.iloc[:n],app.label_strength(z.iloc[:n]))
+        z.loc[1,'ADX']=19
+        self.assertEqual(app.label_strength(z).signal_label.iloc[1],'매수')
+        z.loc[3,'bull_state']=True
+        self.assertEqual(app.label_strength(z).signal_label.iloc[3],'매도')
+
     def test_next_open_costs_hold_and_pending_final(self):
         z=frame([100,110,120,130,140]);z['sig']=['매수','매도','관망','관망','매수']
         trades,eq,dd,holding=app.backtest(z,fee=.001,slip=.002)
