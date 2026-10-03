@@ -23,26 +23,36 @@ class StrategyTests(unittest.TestCase):
         self.assertEqual(len(app.closed_candles(raw,pd.Timestamp('2024-01-03 00:00',tz='UTC'))),2)
         self.assertEqual(len(app.closed_candles(raw,pd.Timestamp('2024-01-02 23:59:59',tz='UTC'))),1)
 
-    def test_divergence_confirmation_and_conflict(self):
-        z=frame([12,11,10,11,12,11,9,10,11])
-        z['RSI']=[50,45,35,45,50,45,40,45,50]
-        z['PDI']=10.;z['MDI']=20.;z['ADX']=10.
-        out=app.signals(z)
-        self.assertFalse(out.bull_div.iloc[6]);self.assertFalse(out.bull_div.iloc[7])
-        self.assertTrue(out.bull_div.iloc[8]);self.assertEqual(out.sig.iloc[8],'매수')
-        self.assertEqual(int(out.div_from.iloc[8]),2);self.assertEqual(int(out.div_to.iloc[8]),6)
-        high=frame([8,9,10,9,8,9,11,10,9])
-        high['RSI']=[50,55,65,55,50,55,60,55,50]
-        high['PDI']=10.;high['MDI']=20.;high['ADX']=10.
-        self.assertTrue(app.signals(high).bear_div.iloc[8])
-        z.loc[7,'PDI']=30.;z.loc[8,'PDI']=5.
-        conflict=app.signals(z)
-        self.assertEqual(conflict.sig.iloc[8],'관망(충돌)')
+    def test_stochastic_30_10_10(self):
+        raw=frame(range(1,101));z=app.indicators(raw)
+        fast=100*(raw.close-raw.low.rolling(30).min())/(raw.high.rolling(30).max()-raw.low.rolling(30).min())
+        pd.testing.assert_series_equal(z.SlowK,fast.rolling(10).mean(),check_names=False)
+        pd.testing.assert_series_equal(z.SlowD,fast.rolling(10).mean().rolling(10).mean(),check_names=False)
+        self.assertEqual(z.SlowK.first_valid_index(),38)
+        self.assertEqual(z.SlowD.first_valid_index(),47)
+        flat=frame([10]*60);flat['high']=10.;flat['low']=10.
+        self.assertEqual(app.indicators(flat).SlowD.iloc[-1],50)
 
-    def test_cross_rsi_and_no_lookahead(self):
-        z=frame([10]*4);z['RSI']=[25,35,75,65];z['PDI']=[10,20,20,10];z['MDI']=15;z['ADX']=10
+    def test_trend_divergence_onset_persistence_and_both_directions(self):
+        z=frame(range(100,130));z['RSI']=np.linspace(70,40,30)
+        z['PDI']=20.;z['MDI']=10.;z['SlowK']=60.;z['SlowD']=50.
         out=app.signals(z)
-        self.assertEqual(out.sig.tolist(),['관망','매수','관망','매도'])
+        self.assertEqual(out.sig.iloc[13],'매도')
+        self.assertEqual(out.sig.iloc[14],'관망')
+        self.assertTrue(out.bear_state.iloc[-1]);self.assertEqual(out.bear_div.sum(),1)
+        z.close=z.close.iloc[::-1].to_numpy();z.RSI=z.RSI.iloc[::-1].to_numpy()
+        out=app.signals(z)
+        self.assertEqual(out.sig.iloc[13],'매수');self.assertTrue(out.bull_state.iloc[-1])
+        # An opposing DMI entry on divergence onset must yield a conflict.
+        z.loc[12,'PDI']=5.;z.loc[13,'PDI']=20.
+        z.close=z.close.iloc[::-1].to_numpy();z.RSI=z.RSI.iloc[::-1].to_numpy()
+        self.assertEqual(app.signals(z).sig.iloc[13],'관망(충돌)')
+
+    def test_cross_confirmation_and_no_lookahead(self):
+        z=frame([10]*5);z['RSI']=50.;z['PDI']=[10,20,20,10,20];z['MDI']=15.
+        z['SlowK']=[40,60,60,40,40];z['SlowD']=50.
+        out=app.signals(z)
+        self.assertEqual(out.sig.tolist(),['관망','매수','관망','매도','관망'])
         rng=np.random.default_rng(9)
         raw=frame(100+np.cumsum(rng.normal(size=200)))
         full=app.signals(app.indicators(raw))
