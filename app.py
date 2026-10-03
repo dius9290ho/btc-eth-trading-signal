@@ -299,7 +299,7 @@ def closed_candles(raw, now=None):
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def daily_candles(market, count=1000):
+def daily_candles(market, count=1500):
     rows = []; cursor = None
     for _ in range((count+199)//200):
         params = {'market': market, 'count': min(200, count-len(rows))}
@@ -390,7 +390,7 @@ def main():
     st.caption('확정 일봉 · 4시간 확인 · 종가 10% 손절 · 강력 신호 · 매수 확인 강화 · v12')
     a,b,c=st.columns([2,2,1])
     coin=a.selectbox('코인',['Bitcoin (BTC)','Ethereum (ETH)'])
-    period=b.selectbox('차트 기간',['1개월','3개월','6개월','1년','2년'],index=1)
+    period=b.selectbox('차트 기간',['1개월','3개월','6개월','1년','2년','3년'],index=1)
     if c.button('새로고침',use_container_width=True):
         daily_candles.clear()
         st.rerun()
@@ -435,7 +435,7 @@ def main():
         b.metric('일봉 신호',last.signal_label)
         c.metric('신호 상태',last.signal_state)
         st.caption(f'판단 일봉 {last.time:%m/%d} · 확인 {checked_at:%H:%M} KST · 청록 매수 / 보라 매도')
-        days={'1개월':30,'3개월':90,'6개월':180,'1년':365,'2년':730}[period]
+        days={'1개월':30,'3개월':90,'6개월':180,'1년':365,'2년':730,'3년':1096}[period]
         st.plotly_chart(chart(z,days),use_container_width=True)
         with st.expander('판단 근거 · 모니터링 안내',expanded=False):
             st.caption(VERSION)
@@ -458,6 +458,17 @@ def main():
                 st.download_button('신호 이력 CSV 다운로드',table.to_csv(index=False).encode('utf-8-sig'),file_name=f'{market}_daily_signals.csv',mime='text/csv')
                 st.caption('매매 신호는 매수·매도 순서로 번갈아 표시됩니다. 일반 매도 이후 하락 조건이 강해지면 추가 경고를 한 번 표시합니다. 추가 경고는 모의 거래나 보유 상태를 바꾸지 않습니다.')
         with tab2:
+            st.markdown('**현재 조건 · 1년 / 2년 / 3년 누적 수익률**')
+            period_rows=[]
+            for years in [1,2,3]:
+                start=z.time.max()+pd.Timedelta(days=1)-pd.DateOffset(years=years)
+                window_data=z[z.time>=start].reset_index(drop=True)
+                if closed.time.min()>start-pd.Timedelta(days=200):
+                    st.warning(f'{years}년 비교에 필요한 이전 일봉 자료가 부족합니다.');continue
+                completed,curve,drawdown,is_holding=backtest(window_data)
+                period_rows.append({'기간':f'{years}년','시작일':window_data.time.iloc[0].strftime('%Y-%m-%d'),'마지막 일봉':window_data.time.iloc[-1].strftime('%Y-%m-%d'),'누적 수익률(%)':round((curve.iloc[-1]-1)*100,4),'1천만원 최종자산(원)':round(curve.iloc[-1]*10_000_000),'최대 낙폭(%)':round(drawdown,4),'완료 거래':len(completed)})
+            st.dataframe(pd.DataFrame(period_rows),hide_index=True,use_container_width=True)
+            st.caption('각 기간 현금 100%로 별도 시작 · 수수료 0.05%/편도 · 슬리피지 0.03%/편도 · 확정 신호 다음 일봉 시가 체결 · 미청산 보유분 평가손익 및 예상 청산비용 포함. 누적 수익률이며 연평균 수익률이 아닙니다. 현재 조건을 과거에 적용한 모의 결과로, 조건 선정 기간도 포함됩니다.')
             refinement=REFINEMENT_REPORT[market]
             st.markdown('**매수 조건 정교화 · v12 최근 1년 비교**')
             st.caption(f'{refinement["start"][:10]} ~ {refinement["end"][:10]} · 코인별 12개, 총 24개 확인 조건 비교 · 수수료·슬리피지 포함')
