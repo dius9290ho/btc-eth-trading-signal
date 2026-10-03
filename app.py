@@ -581,9 +581,7 @@ def main():
                 st.caption('매매 신호는 매수·매도 순서로 번갈아 표시됩니다. 일반 매도 이후 하락 조건이 강해지면 추가 경고를 한 번 표시합니다. 추가 경고는 모의 거래나 보유 상태를 바꾸지 않습니다.')
         with tab2:
             st.markdown(f'**{strategy} 선택 조건 · 1년 / 2년 / 3년 누적 수익률**')
-            period_rows=[]; dmi_rows=[]; dmi_stop_rows=[]
-            dmi_frame=dmi_only_signals(indicators(closed))
-            dmi_stop_frame=dmi_only_signals(indicators(closed),stop_pct=10)
+            period_rows=[]
             for years in [1,2,3]:
                 start=z.time.max()+pd.Timedelta(days=1)-pd.DateOffset(years=years)
                 window_data=z[z.time>=start].reset_index(drop=True)
@@ -591,37 +589,7 @@ def main():
                     st.warning(f'{years}년 비교에 필요한 이전 일봉 자료가 부족합니다.');continue
                 completed,curve,drawdown,is_holding=backtest(window_data)
                 period_rows.append({'기간':f'{years}년','시작일':window_data.time.iloc[0].strftime('%Y-%m-%d'),'마지막 일봉':window_data.time.iloc[-1].strftime('%Y-%m-%d'),'누적 수익률(%)':round((curve.iloc[-1]-1)*100,4),'1천만원 최종자산(원)':round(curve.iloc[-1]*10_000_000),'최대 낙폭(%)':round(drawdown,4),'완료 거래':len(completed)})
-                dmi_window=dmi_frame[dmi_frame.time>=start].reset_index(drop=True)
-                dt,de,ddd,dh=backtest(dmi_window)
-                dmi_rows.append({'기간':f'{years}년','DMI만 수익률(%)':round((de.iloc[-1]-1)*100,4),'현재 앱 수익률(%)':round((curve.iloc[-1]-1)*100,4),'DMI 최대 낙폭(%)':round(ddd,4),'현재 앱 최대 낙폭(%)':round(drawdown,4),'DMI 완료 거래':len(dt),'DMI 1천만원 최종자산(원)':round(de.iloc[-1]*10_000_000)})
-                ds=dmi_stop_frame[dmi_stop_frame.time>=start].reset_index(drop=True)
-                dst,dse,dsdd,dsh=backtest(ds)
-                dmi_stop_rows.append({'기간':f'{years}년','DMI+10% 손절 수익률(%)':round((dse.iloc[-1]-1)*100,4),'DMI만 수익률(%)':round((de.iloc[-1]-1)*100,4),'손절 포함 최대 낙폭(%)':round(dsdd,4),'손절 제외 최대 낙폭(%)':round(ddd,4),'손절 포함 완료 거래':len(dst),'1천만원 최종자산(원)':round(dse.iloc[-1]*10_000_000)})
             st.dataframe(pd.DataFrame(period_rows),hide_index=True,use_container_width=True)
-            st.caption('각 기간 현금 100%로 별도 시작 · 수수료 0.05%/편도 · 슬리피지 0.03%/편도 · 확정 신호 다음 일봉 시가 체결 · 미청산 보유분 평가손익 및 예상 청산비용 포함. 누적 수익률이며 연평균 수익률이 아닙니다. 현재 조건을 과거에 적용한 모의 결과로, 조건 선정 기간도 포함됩니다.')
-            st.markdown('**DMI(14) 교차만 적용한 비교**')
-            st.dataframe(pd.DataFrame(dmi_rows),hide_index=True,use_container_width=True)
-            st.caption('동일 기간·동일 거래비용·다음 일봉 시가 체결. DMI만: +DI 상향교차 매수 / −DI 우세로 하향교차 매도. ADX·RSI·스토캐스틱·EMA·MACD 필터와 10% 손절을 모두 제외한 별도 모의 비교입니다. 기간 시작은 현금이며 시작 전 발생한 매수는 승계하지 않습니다. 현재 차트·신호·백테스트는 위에서 선택한 버전의 조건을 적용합니다.')
-            st.markdown('**DMI(14) + 일봉 종가 10% 손절 비교**')
-            st.dataframe(pd.DataFrame(dmi_stop_rows),hide_index=True,use_container_width=True)
-            st.caption('DMI 교차 조건에만 10% 종가 손절 추가. 모의 매수가=매수 신호 다음 일봉 시가+0.03% 슬리피지. 확정 종가가 매수가의90% 이하이면 매도, 다음 일봉 시가 체결. 장중 저가만으로 손절하지 않으며 실제 손실이10%를 넘을 수 있습니다. 손절 이후 다음 DMI 상향교차까지 대기합니다. 현재 차트·신호·백테스트는 위에서 선택한 버전의 조건을 적용합니다.')
-            st.caption('설정한 차트 기간의 시작은 현금 100%로 가정합니다. 지표는 이전 데이터로 계산하고, 확정 신호 다음 일봉 시가에 체결합니다. 최소 보유 21시간 · 거래당 수수료 0.05% · 슬리피지 0.03%.')
-            btdata=z[z.time >= z.time.max()-pd.Timedelta(days=days)].reset_index(drop=True)
-            trades,equity,dd,holding=backtest(btdata)
-            total=(equity.iloc[-1]-1)*100
-            buyhold=(btdata.close.iloc[-1]*(1-.0003)*(1-.0005)/(btdata.open.iloc[0]*(1+.0003)*(1+.0005))-1)*100
-            a,b,c,d=st.columns(4)
-            a.metric('전략 수익률',f'{total:+.2f}%')
-            b.metric('단순 보유 수익률',f'{buyhold:+.2f}%')
-            c.metric('최대 낙폭',f'{dd:.2f}%')
-            d.metric('완료 거래',f'{len(trades)}회')
-            st.caption('현재 모의 포지션: '+('보유 중(평가손익 및 예상 청산비용 포함)' if holding else '현금'))
-            st.line_chart(pd.DataFrame({'전략 자산(초기=100)':equity.values*100},index=btdata.time.dt.tz_localize(None)))
-            if not trades.empty:
-                st.dataframe(trades,use_container_width=True,hide_index=True)
-            else:
-                st.info('선택한 기간에 완료된 매매가 없습니다.')
-            st.caption('과거 데이터의 모의 결과이며 미래 수익을 보장하지 않습니다.')
     except (requests.RequestException,ValueError,KeyError) as exc:
         st.error('일봉 데이터를 불러오지 못했습니다. 시세 새로고침을 눌러 다시 시도해 주세요.')
         st.caption(str(exc))
