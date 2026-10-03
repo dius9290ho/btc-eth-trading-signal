@@ -74,6 +74,19 @@ class StrategyTests(unittest.TestCase):
         self.assertEqual(len(fig.layout.annotations),3)
         self.assertGreaterEqual(fig.layout.height,600)
 
+    def test_optimized_paths_are_causal_and_alternate(self):
+        rng=np.random.default_rng(8)
+        raw=frame(100+np.cumsum(rng.normal(size=220)))
+        x=app.indicators(raw)
+        for market in ['KRW-BTC','KRW-ETH']:
+            full=app.active_signals(x,market)
+            partial=app.active_signals(app.indicators(raw.iloc[:150]),market)
+            pd.testing.assert_frame_equal(full.iloc[:150].reset_index(drop=True),partial.reset_index(drop=True))
+            emitted=full[full.sig.isin(['매수','매도'])].sig.tolist()
+            self.assertTrue(all(a!=b for a,b in zip(emitted,emitted[1:])))
+        self.assertEqual(app.OPTIMIZATION_REPORT['KRW-ETH']['applied_params']['window'],14)
+        self.assertEqual(app.OPTIMIZATION_REPORT['KRW-BTC']['applied_params']['exit_mode'],'dmi_early')
+
     def test_next_open_costs_hold_and_pending_final(self):
         z=frame([100,110,120,130,140]);z['sig']=['매수','매도','관망','관망','매수']
         trades,eq,dd,holding=app.backtest(z,fee=.001,slip=.002)
