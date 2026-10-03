@@ -123,10 +123,12 @@ class StrategyTests(unittest.TestCase):
         # Low below stop alone does not trigger; only confirmed close does.
         z.loc[1,'close']=95
         self.assertFalse(app.sequence_signals(z,stop_pct=10).stop_trigger.iloc[1])
-        for market in ['KRW-BTC','KRW-ETH']:
-            with patch('app.signals',return_value=z) as mock:
-                app.active_signals(z,market)
-                self.assertEqual(mock.call_args.kwargs['stop_pct'],10.0)
+        with patch('app.signals',return_value=z) as mock:
+            app.active_signals(z,'KRW-BTC')
+            self.assertEqual(mock.call_args.kwargs['stop_pct'],10.0)
+        with patch('app.research_signals',return_value=z) as mock:
+            app.active_signals(z,'KRW-ETH')
+            self.assertEqual(mock.call_args.args[2],{'macd':'positive'})
 
     def test_strength_labels_preserve_events_and_stop_priority(self):
         z=frame([100,110,115,90,85])
@@ -165,6 +167,34 @@ class StrategyTests(unittest.TestCase):
         self.assertFalse(app.label_strength(z).upgrade_warning.iloc[2])
         z.loc[2,'bull_state']=True
         self.assertFalse(app.label_strength(z).upgrade_warning.iloc[2])
+
+    def test_research_indicators_and_profile_causality(self):
+        raw=frame([100]*80);raw.loc[60,'volume']=300
+        x=app.indicators(raw)
+        self.assertEqual(x.VolumeRatio.iloc[60],3)
+        self.assertEqual(x.MACDhist.iloc[-1],0)
+        self.assertEqual(x.BBlower.iloc[-1],100)
+        rng=np.random.default_rng(15)
+        raw=frame(100+np.cumsum(rng.normal(size=220)))
+        for market in ['KRW-BTC','KRW-ETH']:
+            full=app.research_signals(app.indicators(raw),market,{'volume':.8,'macd':'rising','bb':'rebound','atr':3})
+            partial=app.research_signals(app.indicators(raw.iloc[:150]),market,{'volume':.8,'macd':'rising','bb':'rebound','atr':3})
+            pd.testing.assert_frame_equal(full.iloc[:150],partial)
+            base=app.signals(app.indicators(raw),stop_pct=10,**app.OPTIMIZATION_REPORT[market]['applied_params'])
+            pd.testing.assert_series_equal(base.sig,app.research_signals(app.indicators(raw),market,{}).sig)
+            emitted=full[full.sig.isin(['매수','매도'])].sig.tolist()
+            self.assertTrue(all(a!=b for a,b in zip(emitted,emitted[1:])))
+
+    def test_atr_trailing_line_never_moves_down_and_close_only(self):
+        z=frame([100,100,120,115,110]);z['open']=100.
+        z['ATR']=[2,2,2,5,10];z['low']=70.
+        z['candidate_sig']=['매수','관망','관망','관망','관망'];z['sig']=z.candidate_sig;z['reason']=''
+        out=app.sequence_signals(z,stop_pct=10,atr_mult=3)
+        self.assertEqual(out.sig.tolist(),['매수','관망','관망','관망','매도'])
+        self.assertEqual(out.stop_price.iloc[2:].tolist(),[114.,114.,114.])
+        self.assertIn('ATR(14)',out.reason.iloc[-1])
+        for n in [2,3,4]:
+            pd.testing.assert_frame_equal(out.iloc[:n],app.sequence_signals(z.iloc[:n],stop_pct=10,atr_mult=3))
 
     def test_next_open_costs_hold_and_pending_final(self):
         z=frame([100,110,120,130,140]);z['sig']=['매수','매도','관망','관망','매수']
