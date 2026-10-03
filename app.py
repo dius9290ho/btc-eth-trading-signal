@@ -223,19 +223,19 @@ def chart(z, days):
     dates = view.time.dt.tz_localize(None)
     fig = go.Figure()
     fig.add_trace(go.Candlestick(x=dates, open=view.open, high=view.high, low=view.low, close=view.close,
-        name='일봉', increasing_line_color='#de5252', increasing_fillcolor='#de5252',
-        decreasing_line_color='#3183c8', decreasing_fillcolor='#3183c8', line_width=1.3))
+        name='일봉', increasing_line_color='#e45f5f', increasing_fillcolor='#e45f5f',
+        decreasing_line_color='#397dcc', decreasing_fillcolor='#397dcc', line_width=1.3))
     for _, r in view[view.sig.isin(['매수','매도'])].iterrows():
         buy = r.sig == '매수'; offset = max(r.high-r.low, r.close*.015)
         fig.add_annotation(x=r.time.tz_localize(None), y=r.low-offset*.3 if buy else r.high+offset*.3,
             text=r.sig, showarrow=True, arrowhead=2, arrowwidth=3,
-            arrowcolor='#073da8' if buy else '#7c168e', font=dict(color='#073da8' if buy else '#7c168e',size=12),
+            arrowcolor='#087f72' if buy else '#7841ad', font=dict(color='#087f72' if buy else '#7841ad',size=12),
             ax=0, ay=42 if buy else -42)
     low, high = view.low.min(), view.high.max()
     padding = max((high-low)*.14, high*.025)
     fig.update_layout(height=410,template='plotly_white',xaxis_rangeslider_visible=False,
         hovermode='x unified',dragmode='pan',showlegend=False,
-        margin=dict(l=4,r=8,t=20,b=12),font=dict(size=12,color='#273449'),paper_bgcolor='#ffffff',plot_bgcolor='#ffffff',yaxis=dict(range=[low-padding,high+padding],side='right',tickformat=',.0f',gridcolor='#edf1f6',nticks=5))
+        margin=dict(l=4,r=8,t=20,b=12),font=dict(size=12,color='#344762'),paper_bgcolor='#ffffff',plot_bgcolor='#ffffff',yaxis=dict(range=[low-padding,high+padding],side='right',tickformat=',.0f',gridcolor='#eaf0f7',nticks=5))
     unit=100000000 if high >= 10000000 else 10000
     ticks=np.linspace(low,high,5)
     fig.update_yaxes(tickmode='array',tickvals=ticks,ticktext=[f'{v/unit:.2f}억' if unit==100000000 else f'{v/unit:,.0f}만' for v in ticks])
@@ -247,18 +247,25 @@ def chart(z, days):
 def main():
     st.set_page_config(page_title='BTC · ETH 일봉 매매 신호',page_icon='₿',layout='wide')
     st.markdown("""<style>
-    .stApp{background:#f4f6fa;color:#18263d;font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif}
+    .stApp{background:#eef3f8;color:#20324d;font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif}
     .block-container{max-width:1180px;padding:4.25rem 1.2rem 2rem}
     [data-testid="stVerticalBlock"]{gap:.65rem}
-    h1{font-size:1.65rem!important;line-height:1.25!important;padding:.2rem 0!important;font-weight:750!important;color:#172b4d}
+    h1{font-size:1.65rem!important;line-height:1.25!important;padding:.2rem 0!important;font-weight:750!important;color:#16345a}
     p,label{font-size:15px!important;line-height:1.5!important}
-    [data-testid="stCaptionContainer"] p{font-size:13px!important;color:#53647c!important}
-    [data-testid="stMetric"]{background:#fff;border:1px solid #dce4ee;border-top:3px solid #55789f;padding:10px 14px;border-radius:10px}
-    [data-testid="stMetricLabel"] p{font-size:13px!important;color:#53647c}
+    [data-testid="stCaptionContainer"] p{font-size:13px!important;color:#526681!important}
+    [data-testid="stMetric"]{background:#fff;border:1px solid #d9e3ef;border-top:3px solid #4b78ae;padding:10px 14px;border-radius:10px}
+    [data-testid="stMetricLabel"] p{font-size:13px!important;color:#526681}
     [data-testid="stMetricValue"],[data-testid="stMetricValue"] *{font-size:1.4rem!important;font-weight:700}
-    [data-testid="stExpander"]{background:#fff;border-color:#dce4ee;border-radius:9px}
-    [data-testid="stPlotlyChart"]{background:#fff;border:1px solid #dce4ee;border-radius:12px;overflow:hidden}
-    .stButton button{min-height:40px;border-color:#cbd8e7;border-radius:8px;font-weight:600}
+    [data-testid="stExpander"]{background:#fff;border-color:#d9e3ef;border-radius:9px}
+    [data-testid="stPlotlyChart"]{background:#fff;border:1px solid #d9e3ef;border-radius:12px;overflow:hidden}
+    .stButton button{min-height:40px;border-color:#245b92;border-radius:8px;font-weight:600;background:#245b92;color:#fff}
+    .stButton button:hover{background:#194a7a;color:#fff;border-color:#194a7a}
+    [data-baseweb="select"]>div{background:#fff;border-color:#c6d5e7;color:#20324d}
+    [data-baseweb="tab"][aria-selected="true"]{color:#245b92!important}
+    [data-baseweb="tab-highlight"]{background:#245b92!important}
+    [data-testid="stMetric"]{box-shadow:0 2px 7px rgba(27,54,88,.04)}
+    [data-testid="stExpander"] summary{color:#315375}
+
     [data-baseweb="tab"]{font-size:15px;font-weight:650}
     @media(max-width:640px){
       .block-container{padding:4rem .65rem 1.5rem}
@@ -316,7 +323,7 @@ def main():
         a.metric('조회 가격',f'₩{current.close:,.0f}')
         b.metric('일봉 신호',last.sig)
         c.metric('신호 상태',last.signal_state)
-        st.caption(f'판단 일봉 {last.time:%m/%d} · 확인 {checked_at:%H:%M} KST · 파랑 매수 / 보라 매도')
+        st.caption(f'판단 일봉 {last.time:%m/%d} · 확인 {checked_at:%H:%M} KST · 청록 매수 / 보라 매도')
         days={'1개월':30,'3개월':90,'6개월':180,'1년':365,'2년':730}[period]
         st.plotly_chart(chart(z,days),use_container_width=True)
         with st.expander('판단 근거 · 모니터링 안내',expanded=False):
