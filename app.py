@@ -51,15 +51,27 @@ def label_dmi_strength(z):
     z['alert_event'] = buy | sell
     z['event_kind'] = np.where(buy | sell, '매매 신호', '')
     z['strength_count'] = np.where((buy & strong_up) | (sell & strong_down), 3, 0)
+    z['upgrade_buy'] = False
+    buy_phase = False; buy_warned = False
     sell_phase = False; warned = False
     for i in range(len(z)):
         direction = z.sig.iloc[i]
         if direction == '매수':
+            buy_phase = True; buy_warned = bool(strong_up.iloc[i])
             sell_phase = False; warned = False
         elif direction == '매도':
+            buy_phase = False; buy_warned = False
             sell_phase = True
             # A stop with already strong DMI must not produce a redundant warning.
             warned = bool(strong_down.iloc[i])
+        elif buy_phase and not buy_warned and direction == '관망' and strong_up.iloc[i]:
+            z.loc[z.index[i], 'signal_label'] = '강력매수 · 추가 확인'
+            z.loc[z.index[i], 'upgrade_buy'] = True
+            z.loc[z.index[i], 'alert_event'] = True
+            z.loc[z.index[i], 'event_kind'] = '추가 매수 확인'
+            z.loc[z.index[i], 'strength_count'] = 3
+            z.loc[z.index[i], 'reason'] = '기존 매수 이후 DMI 상승 조건 강화 · +DI > −DI / ADX(14)≥20 및 상승 / +DI 우위 확대 · 이미 매수했다면 추가 매수 지시가 아닙니다'
+            buy_warned = True
         elif sell_phase and not warned and direction == '관망' and strong_down.iloc[i]:
             z.loc[z.index[i], 'signal_label'] = '강력매도 · 추가 경고'
             z.loc[z.index[i], 'upgrade_warning'] = True
@@ -356,14 +368,26 @@ def label_strength(z):
     z['upgrade_warning'] = False
     z['alert_event'] = buy | sell
     z['event_kind'] = np.where(buy | sell, '매매 신호', '')
+    z['upgrade_buy'] = False
+    buy_phase = False; buy_warned = False
     sell_phase = False; warned = False
     for i in range(len(z)):
         direction = z.sig.iloc[i]
         if direction == '매수':
+            buy_phase = True; buy_warned = z.signal_label.iloc[i] == '강력매수'
             sell_phase = False; warned = False
         elif direction == '매도':
+            buy_phase = False; buy_warned = False
             sell_phase = True
             warned = z.signal_label.iloc[i] == '강력매도'
+        elif buy_phase and not buy_warned and direction == '관망' and up_count.iloc[i] == 3 and not bear.iloc[i]:
+            z.loc[z.index[i], 'signal_label'] = '강력매수 · 추가 확인'
+            z.loc[z.index[i], 'upgrade_buy'] = True
+            z.loc[z.index[i], 'alert_event'] = True
+            z.loc[z.index[i], 'event_kind'] = '추가 매수 확인'
+            z.loc[z.index[i], 'strength_count'] = 3
+            z.loc[z.index[i], 'reason'] = '기존 매수 이후 상승 조건 강화 · RSI·DMI(ADX≥20)·스토캐스틱 3/3 일치 · 이미 매수했다면 추가 매수 지시가 아닙니다'
+            buy_warned = True
         elif sell_phase and not warned and direction == '관망' and down_count.iloc[i] == 3 and not bull.iloc[i]:
             z.loc[z.index[i], 'signal_label'] = '강력매도 · 추가 경고'
             z.loc[z.index[i], 'upgrade_warning'] = True
@@ -451,9 +475,9 @@ def chart(z, days):
         name='일봉', increasing_line_color='#e45f5f', increasing_fillcolor='#e45f5f',
         decreasing_line_color='#397dcc', decreasing_fillcolor='#397dcc', line_width=1.3))
     for _, r in view[view.get('alert_event',view.sig.isin(['매수','매도']))].iterrows():
-        buy = r.sig == '매수'; offset = max(r.high-r.low, r.close*.015)
+        buy = r.sig == '매수' or bool(r.get('upgrade_buy',False)); offset = max(r.high-r.low, r.close*.015)
         fig.add_annotation(x=r.time.tz_localize(None), y=r.low-offset*.3 if buy else r.high+offset*.3,
-            text='강력매도<br>추가 경고' if r.get('upgrade_warning',False) else r.get('signal_label',r.sig), showarrow=True, arrowhead=2, arrowwidth=4 if str(r.get('signal_label','')).startswith('강력') else 3,
+            text='강력매수<br>추가 확인' if r.get('upgrade_buy',False) else '강력매도<br>추가 경고' if r.get('upgrade_warning',False) else r.get('signal_label',r.sig), showarrow=True, arrowhead=2, arrowwidth=4 if str(r.get('signal_label','')).startswith('강력') else 3,
             arrowcolor='#087f72' if buy else '#7841ad', font=dict(color='#087f72' if buy else '#7841ad',size=13 if str(r.get('signal_label','')).startswith('강력') else 12),
             ax=46 if r.get('upgrade_warning',False) else 0, ay=-72 if r.get('upgrade_warning',False) else (42 if buy else -42))
     low, high = view.low.min(), view.high.max()
@@ -523,13 +547,13 @@ def main():
             st.markdown('**일봉 DMI(14) 교차 + 종가 10% 손절 · BTC/ETH 동일 조건**')
             st.markdown('**매수:** +DI가 −DI를 상향교차. **매도:** +DI가 −DI를 하향교차하거나 확정 일봉 종가가 모의 매수가의 90% 이하. 매수·매도는 번갈아 표시하며 손절 후에는 다음 DMI 상향교차까지 대기합니다.')
             st.caption('강력매수·강력매도: 신호 방향의 DI가 우세하고, ADX(14)가 20 이상이면서 전일보다 상승하고, 우세 DI의 격차도 전일보다 확대될 때 표시합니다. ADX는 DMI의 추세 강도 값입니다. 이 조건은 표시·경고에만 사용하며 교차 매매를 제한하지 않습니다. 강력은 조건 일치도이며 적중률을 뜻하지 않습니다.')
-            st.caption('확정 신호 이력에서는 일반 매도 이후 DMI 강력매도 조건을 처음 충족하면 다음 매수 전까지 추가 경고를 한 번 알립니다. 최초 매도 시 이미 강력 조건이면 재경고하지 않습니다. 이미 매도했다면 추가 거래가 필요 없습니다. 장중 알림은 강력매도 약화·재강화도 매번 변화 시 알립니다. 확정 이력에서는 매수 이후 강력매수 추가 신호를 만들지 않습니다. 장중 모니터링에서는 강력매수 강화와 약화 등 모든 신호 변화를 알립니다. 이미 매수한 경우 추가 매수 지시가 아닙니다.')
+            st.caption('확정 신호 이력에서는 일반 매도 이후 DMI 강력매도 조건을 처음 충족하면 다음 매수 전까지 추가 경고를 한 번 알립니다. 최초 매도 시 이미 강력 조건이면 재경고하지 않습니다. 이미 매도했다면 추가 거래가 필요 없습니다. 장중 알림은 강력매도 약화·재강화도 매번 변화 시 알립니다. 확정 이력에서도 일반 매수 이후 상승 조건이 강해지면 다음 매도 전까지 강력매수 추가 확인을 한 번 표시합니다. 최초 매수가 강력매수이면 재표시하지 않습니다. 장중 모니터링에서는 강력매수 강화와 약화 등 모든 신호 변화를 알립니다. 이미 매수한 경우 추가 매수 지시가 아닙니다.')
             st.caption('손절은 매수 신호 다음 일봉 시가에 슬리피지 0.03%를 반영한 모의 매수가 기준입니다. 확정 일봉 종가로 판단하고 다음 일봉 시가에 모의 체결하므로 실제 손실이 10%를 넘을 수 있습니다. 실제 계좌 매수가와 연동되지 않습니다.')
             st.caption('RSI·스토캐스틱·EMA·MACD·거래량은 현재 매매 및 강력 신호 판단에 사용하지 않습니다.')
         else:
             st.markdown('**v13 · 기존 복합지표 + 종가 10% 손절**')
             st.caption('DMI(14), RSI(14) 다이버전스, Slow Stochastic(30/10/10) 조합. BTC는 30일 다이버전스와 DMI 하향교차 조기청산, ETH는 14일 다이버전스와 EMA(50), MACD 히스토그램 양수 및 +DI − −DI ≥ 2포인트 매수 확인을 적용합니다. v13의 기존 매매 조건을 그대로 사용합니다.')
-            st.caption('강력 신호는 RSI 방향·DMI 방향(ADX≥20)·스토캐스틱 방향이 일치할 때 표시합니다. 일반 매도 이후 강력매도 조건이 강화되면 다음 매수 전까지 추가 경고 1회. 장중 알림은 강력매도 약화·재강화도 매번 변화 시 알립니다. 확정 이력에서는 매수 이후 강력매수 추가 신호를 만들지 않습니다. 장중 모니터링에서는 강력매수 강화와 약화 등 모든 신호 변화를 알립니다. 이미 매수한 경우 추가 매수 지시가 아닙니다.')
+            st.caption('강력 신호는 RSI 방향·DMI 방향(ADX≥20)·스토캐스틱 방향이 일치할 때 표시합니다. 일반 매도 이후 강력매도 조건이 강화되면 다음 매수 전까지 추가 경고 1회. 장중 알림은 강력매도 약화·재강화도 매번 변화 시 알립니다. 확정 이력에서도 일반 매수 이후 상승 조건이 강해지면 다음 매도 전까지 강력매수 추가 확인을 한 번 표시합니다. 최초 매수가 강력매수이면 재표시하지 않습니다. 장중 모니터링에서는 강력매수 강화와 약화 등 모든 신호 변화를 알립니다. 이미 매수한 경우 추가 매수 지시가 아닙니다.')
             st.caption('손절은 확정 일봉 종가가 모의 매수가의 90% 이하일 때 판단합니다. 실제 계좌와 연동되지 않으며 실제 손실이 10%를 넘을 수 있습니다.')
         st.caption('장중 판단은 진행 중인 일봉의 현재가·고가·저가로 1시간마다 재계산합니다. 매수·강력매수·매도·강력매도·관망·손절 경고가 직전 확인과 달라지면 알림을 내며 최초 조회는 기준 상태만 저장합니다. 확정 이력·백테스트는 마감 일봉만 사용합니다. 앱 밖 예약 알림은 v14 기준입니다.')
     market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
@@ -578,7 +602,7 @@ def main():
                 table.columns=['신호 확정시각(KST)','신호','판단 종가(원)','판단 근거']
                 st.dataframe(table,use_container_width=True,hide_index=True)
                 st.download_button('신호 이력 CSV 다운로드',table.to_csv(index=False).encode('utf-8-sig'),file_name=f'{market}_daily_signals.csv',mime='text/csv')
-                st.caption('매매 신호는 매수·매도 순서로 번갈아 표시됩니다. 일반 매도 이후 하락 조건이 강해지면 추가 경고를 한 번 표시합니다. 추가 경고는 모의 거래나 보유 상태를 바꾸지 않습니다.')
+                st.caption('매매 신호는 매수·매도 순서로 번갈아 표시됩니다. 일반 매수 후 조건이 강해지면 강력매수 추가 확인을, 일반 매도 후 조건이 강해지면 강력매도 추가 경고를 각 한 번 표시합니다. 추가 확인·경고는 모의 거래나 보유 상태를 바꾸지 않습니다.')
         with tab2:
             st.markdown(f'**{strategy} 선택 조건 · 1년 / 2년 / 3년 누적 수익률**')
             period_rows=[]
