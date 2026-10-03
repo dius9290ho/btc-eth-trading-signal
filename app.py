@@ -5,7 +5,13 @@ import requests
 import streamlit as st
 import plotly.graph_objects as go
 
-VERSION = '일봉 매매 신호 · 4시간 모니터링 / v4'
+VERSION = '일봉 매매 신호 · 검증 최적화 · 4시간 모니터링 / v5'
+
+
+OPTIMIZATION_REPORT = {'KRW-BTC': {'params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'train': {'return': 59.504, 'dd': -9.5508, 'trades': 12}, 'validation': {'return': -5.4235, 'dd': -13.1394, 'trades': 6}, 'holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'baseline_holdout': {'return': 0.6368, 'dd': -16.0627, 'trades': 7}, 'full': {'return': 91.7306, 'dd': -13.4732, 'trades': 24}, 'baseline_full': {'return': -3.957, 'dd': -25.7951, 'trades': 27}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(-6.1246), 'dd': np.float64(-14.1909)}, 'buyhold_holdout': np.float64(-10.6101), 'applied_params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'applied_holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'decision': 'BTC: 비교 후 적용'}, 'KRW-ETH': {'params': {'window': 21, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'stoch_direction', 'min_adx': 15, 'exit_mode': 'confirmed'}, 'train': {'return': 80.6914, 'dd': -27.0236, 'trades': 8}, 'validation': {'return': 21.3897, 'dd': -24.613, 'trades': 6}, 'holdout': {'return': -7.5621, 'dd': -24.1031, 'trades': 5}, 'baseline_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'full': {'return': 104.1785, 'dd': -36.407, 'trades': 20}, 'baseline_full': {'return': 18.7774, 'dd': -42.651, 'trades': 24}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(6.6622), 'dd': np.float64(-29.9458)}, 'buyhold_holdout': np.float64(-13.2666), 'applied_params': {'window': 14, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'confirmed'}, 'applied_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'decision': 'ETH: 별도 평가에서 악화되어 기존 조건 유지'}}
+
+def active_signals(x, market):
+    return signals(x, **OPTIMIZATION_REPORT[market]["applied_params"])
 
 
 def wilder(series, period):
@@ -51,7 +57,7 @@ def indicators(raw, period=14, stoch_period=30, smooth_k=10, smooth_d=10):
     return x
 
 
-def signals(x, window=14, min_price=1.0, min_rsi=3.0):
+def signals(x, window=14, min_price=1.0, min_rsi=3.0, div_confirm='none', min_adx=0, exit_mode='confirmed'):
     """Trailing regression divergence; no future pivots or retroactive signals."""
     z = x.copy()
     axis = np.arange(window, dtype=float)
@@ -67,8 +73,13 @@ def signals(x, window=14, min_price=1.0, min_rsi=3.0):
     rsi_change = z.RSI-z.RSI.shift(window-1)
     z['bull_state'] = (price_fit < -min_price) & (rsi_fit > min_rsi) & (price_change < 0) & (rsi_change > 0)
     z['bear_state'] = (price_fit > min_price) & (rsi_fit < -min_rsi) & (price_change > 0) & (rsi_change < 0)
-    z['bull_div'] = z.bull_state & ~z.bull_state.shift(1, fill_value=False)
-    z['bear_div'] = z.bear_state & ~z.bear_state.shift(1, fill_value=False)
+    if div_confirm == 'stoch_direction':
+        bull_ready = z.bull_state & (z.SlowK.diff() > 0)
+        bear_ready = z.bear_state & (z.SlowK.diff() < 0)
+    else:
+        bull_ready, bear_ready = z.bull_state, z.bear_state
+    z['bull_div'] = bull_ready & ~bull_ready.shift(1, fill_value=False)
+    z['bear_div'] = bear_ready & ~bear_ready.shift(1, fill_value=False)
     z['div_from'] = np.where(z.bull_div | z.bear_div, z.index-window+1, -1)
     z['div_to'] = np.where(z.bull_div | z.bear_div, z.index, -1)
     z['DMIup'] = (z.PDI > z.MDI) & (z.PDI.shift() <= z.MDI.shift())
@@ -79,14 +90,14 @@ def signals(x, window=14, min_price=1.0, min_rsi=3.0):
     for i in range(1, len(z)):
         r = z.iloc[i]; buys, sells = [], []
         if r.bull_div:
-            buys.append(f'상승 다이버전스 · {window}일 종가 하락 / RSI 상승')
+            buys.append(f'상승 다이버전스 · {window}일 종가 하락 / RSI 상승'+(' · Slow %K 상승 확인' if div_confirm != 'none' else ''))
         if r.bear_div:
-            sells.append(f'하락 다이버전스 · {window}일 종가 상승 / RSI 하락')
-        if r.DMIup and r.SlowK > r.SlowD:
+            sells.append(f'하락 다이버전스 · {window}일 종가 상승 / RSI 하락'+(' · Slow %K 하락 확인' if div_confirm != 'none' else ''))
+        if r.DMIup and r.SlowK > r.SlowD and (min_adx <= 0 or r.ADX >= min_adx):
             buys.append('DMI 상향교차 + Slow %K > %D')
-        if r.DMIdown and r.SlowK < r.SlowD:
-            sells.append('DMI 하향교차 + Slow %K < %D')
-        if r.StochUp and r.PDI > r.MDI:
+        if r.DMIdown and (r.SlowK < r.SlowD or exit_mode == 'dmi_early'):
+            sells.append('DMI 하향교차 · 조기청산' if exit_mode == 'dmi_early' and r.SlowK >= r.SlowD else 'DMI 하향교차 + Slow %K < %D')
+        if r.StochUp and r.PDI > r.MDI and (min_adx <= 0 or r.ADX >= min_adx):
             buys.append('Slow %K/%D 상향교차 + DMI 상승 방향')
         if r.StochDown and r.PDI < r.MDI:
             sells.append('Slow %K/%D 하향교차 + DMI 하락 방향')
@@ -201,7 +212,11 @@ def main():
     if c.button('시세 새로고침',use_container_width=True):
         daily_candles.clear()
         st.rerun()
+    market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
     with st.expander('매매 기준 및 설정',expanded=False):
+        mode=st.selectbox('매매 조건',['검증 후 선택한 조건','수동 조건'],index=0)
+        selected=OPTIMIZATION_REPORT[market]['applied_params']
+        st.caption(f'적용 조건: 다이버전스 {selected["window"]}일 · '+('DMI 하향교차 조기청산' if selected['exit_mode']=='dmi_early' else '지표 방향 확인 청산'))
         st.markdown('**Slow Stochastic: 기간 30 · %K 평활 10 · %D 평활 10(SMA). DMI(14) · RSI(14), RSI 신호선(9).**')
         window=st.number_input('다이버전스 추세 비교 일봉 수',min_value=5,max_value=60,value=14)
         c1,c2=st.columns(2)
@@ -215,7 +230,7 @@ def main():
         closed=closed_candles(raw)
         if len(closed) < max(60,int(window)+14):
             st.warning('지표 계산에 필요한 확정 일봉이 부족합니다.'); return
-        z=signals(indicators(closed),int(window),float(min_price),float(min_rsi))
+        z=active_signals(indicators(closed),market) if mode=='검증 후 선택한 조건' else signals(indicators(closed),int(window),float(min_price),float(min_rsi))
         last=z.iloc[-1]; current=raw.iloc[-1]
         checked_at=pd.Timestamp.now(tz='Asia/Seoul')
         st.caption(f'4시간 자동 모니터링 · 이번 확인: {checked_at:%Y-%m-%d %H:%M} KST · 다음 확인: {checked_at+pd.Timedelta(hours=4):%m-%d %H:%M} KST')
@@ -248,6 +263,16 @@ def main():
                 st.download_button('신호 이력 CSV 다운로드',table.to_csv(index=False).encode('utf-8-sig'),file_name=f'{market}_daily_signals.csv',mime='text/csv')
                 st.caption('신호 이력은 매수·매도 순서로 번갈아 표시됩니다. 최근 신호 상태는 앱의 신호 이력 기준이며 실제 계좌와 연동되지 않습니다.')
         with tab2:
+            report=OPTIMIZATION_REPORT[market]
+            st.markdown('**별도 평가 기간의 비교 결과**')
+            st.caption(f'{report["holdout_start"][:10]} ~ {report["holdout_end"][:10]} · 수수료·슬리피지 포함. 이 기간의 수익률은 조건 순위 선정에 사용하지 않았으며, 채택 여부 점검에 사용했습니다.')
+            comparison=pd.DataFrame([
+                {'조건':'기존','수익률(%)':report['baseline_holdout']['return'],'최대 낙폭(%)':report['baseline_holdout']['dd']},
+                {'조건':'실험 후보','수익률(%)':report['holdout']['return'],'최대 낙폭(%)':report['holdout']['dd']},
+                {'조건':'실제 적용','수익률(%)':report['applied_holdout']['return'],'최대 낙폭(%)':report['applied_holdout']['dd']},
+                {'조건':'단순 보유','수익률(%)':report['buyhold_holdout'],'최대 낙폭(%)':np.nan}])
+            st.dataframe(comparison,use_container_width=True,hide_index=True)
+            st.caption(report['decision']+' · 아래 선택 기간 결과에는 조건 선정에 사용한 과거 구간이 포함될 수 있습니다.')
             st.caption('설정한 차트 기간의 시작은 현금 100%로 가정합니다. 지표는 이전 데이터로 계산하고, 확정 신호 다음 일봉 시가에 체결합니다. 최소 보유 24시간 · 거래당 수수료 0.05% · 슬리피지 0.03%.')
             btdata=z[z.time >= z.time.max()-pd.Timedelta(days=days)].reset_index(drop=True)
             trades,equity,dd,holding=backtest(btdata)
