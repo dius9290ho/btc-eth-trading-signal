@@ -93,17 +93,23 @@ class StrategyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             app.active_signals(x,'KRW-BTC',strategy='wrong')
 
-    def test_active_dmi_warning_once_reset_and_no_buy_upgrade(self):
+    def test_active_dmi_warning_and_buy_upgrade_once_reset(self):
         x=frame([100]*12)
         x['PDI']=np.array([-2,2,3,-1,-3,-4,-5,2,3,-1,-4,-5])+10
         x['MDI']=10.
         x['ADX']=[10,10,11,18,21,23,24,24,26,26,28,29]
         z=app.active_signals(x,'KRW-BTC')
-        self.assertEqual(z[z.alert_event].index.tolist(),[1,3,4,7,9,10])
+        self.assertEqual(z[z.alert_event].index.tolist(),[1,3,4,7,8,9,10])
         self.assertEqual(z[z.upgrade_warning].index.tolist(),[4,10])
         self.assertEqual(z.sig.iloc[4],'관망')
         self.assertEqual(z.signal_state.iloc[4],'매도 이후')
-        self.assertFalse(z.alert_event.iloc[8])
+        self.assertTrue(z.upgrade_buy.iloc[8])
+        self.assertEqual(z.signal_label.iloc[8],'강력매수 · 추가 확인')
+        self.assertEqual(z.sig.iloc[8],'관망')
+        self.assertEqual(z.signal_state.iloc[8],'매수 이후')
+        fig=app.chart(z,365)
+        annotation=[a for a in fig.layout.annotations if a.text=='강력매수<br>추가 확인'][0]
+        self.assertEqual(annotation.arrowcolor,'#087f72')
         self.assertEqual(z[z.sig.isin(['매수','매도'])].sig.tolist(),['매수','매도','매수','매도'])
         pd.testing.assert_frame_equal(z,app.active_signals(x,'KRW-ETH'))
         for n in [4,5,8,11]:
@@ -113,6 +119,25 @@ class StrategyTests(unittest.TestCase):
         out=app.active_signals(x,'KRW-BTC')
         self.assertEqual(out.signal_label.iloc[3],'강력매도')
         self.assertFalse(out.upgrade_warning.iloc[4:7].any())
+        x.loc[7,'ADX']=25
+        out=app.active_signals(x,'KRW-BTC')
+        self.assertEqual(out.signal_label.iloc[7],'강력매수')
+        self.assertFalse(out.upgrade_buy.iloc[8])
+
+    def test_v13_buy_upgrade_once_reset_and_initial_strong_suppression(self):
+        z=frame([100]*9)
+        z['sig']=['관망','매수','관망','관망','매도','매수','관망','관망','관망']
+        z['reason']=''
+        z['RSI']=[40,41,42,43,44,45,46,47,48]
+        z['RSIsignal']=40
+        z['PDI']=25.;z['MDI']=10.;z['ADX']=[10,10,25,26,26,10,25,26,27]
+        z['SlowK']=np.arange(9)+50.;z['SlowD']=40.
+        out=app.label_strength(z)
+        self.assertEqual(out[out.upgrade_buy].index.tolist(),[2,6])
+        pd.testing.assert_series_equal(out.sig,z.sig)
+        self.assertEqual(out.event_kind.iloc[2],'추가 매수 확인')
+        z.loc[1,'ADX']=25
+        self.assertFalse(app.label_strength(z).upgrade_buy.iloc[2:4].any())
 
     def test_active_stop_and_strength_do_not_change_trade_events(self):
         x=frame([100,100,100,85,80,79,90])
