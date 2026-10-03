@@ -5,7 +5,7 @@ import requests
 import streamlit as st
 import plotly.graph_objects as go
 
-VERSION = '일봉 매매 신호 · 검증 최적화 · EMA 추가 검증 · 일봉 종가 10% 손절 · 4시간 모니터링 / v8'
+VERSION = '일봉 매매 신호 · 검증 최적화 · EMA 추가 검증 · 일봉 종가 10% 손절 · 4시간 모니터링 / v9'
 
 
 OPTIMIZATION_REPORT = {'KRW-BTC': {'params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'train': {'return': 59.504, 'dd': -9.5508, 'trades': 12}, 'validation': {'return': -5.4235, 'dd': -13.1394, 'trades': 6}, 'holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'baseline_holdout': {'return': 0.6368, 'dd': -16.0627, 'trades': 7}, 'full': {'return': 91.7306, 'dd': -13.4732, 'trades': 24}, 'baseline_full': {'return': -3.957, 'dd': -25.7951, 'trades': 27}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(-6.1246), 'dd': np.float64(-14.1909)}, 'buyhold_holdout': np.float64(-10.6101), 'applied_params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'applied_holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'decision': 'BTC: 비교 후 적용'}, 'KRW-ETH': {'params': {'window': 21, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'stoch_direction', 'min_adx': 15, 'exit_mode': 'confirmed'}, 'train': {'return': 80.6914, 'dd': -27.0236, 'trades': 8}, 'validation': {'return': 21.3897, 'dd': -24.613, 'trades': 6}, 'holdout': {'return': -7.5621, 'dd': -24.1031, 'trades': 5}, 'baseline_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'full': {'return': 104.1785, 'dd': -36.407, 'trades': 20}, 'baseline_full': {'return': 18.7774, 'dd': -42.651, 'trades': 24}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(6.6622), 'dd': np.float64(-29.9458)}, 'buyhold_holdout': np.float64(-13.2666), 'applied_params': {'window': 14, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'confirmed'}, 'applied_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'decision': 'ETH: 별도 평가에서 악화되어 기존 조건 유지'}}
@@ -127,7 +127,7 @@ def signals(x, window=14, min_price=1.0, min_rsi=3.0, div_confirm='none', min_ad
     z = sequence_signals(z, stop_pct=stop_pct)
     z['confirmed_at'] = z.time+pd.Timedelta(days=1)
     z['div_state'] = np.select([z.bull_state,z.bear_state],['상승 다이버전스(매수 방향)','하락 다이버전스(매도 방향)'],default='없음')
-    return z
+    return label_strength(z)
 
 
 def sequence_signals(z, stop_pct=0.0, slip=0.0003):
@@ -161,6 +161,33 @@ def sequence_signals(z, stop_pct=0.0, slip=0.0003):
         stops.append(stop_line); triggers.append(bool(hit and signal == '매도'))
     z['signal_state'] = states
     z['sim_entry_price'] = anchors; z['stop_price'] = stops; z['stop_trigger'] = triggers
+    return z
+
+
+def label_strength(z):
+    """Display strength only: preserve base events, trades and alternation."""
+    z = z.copy()
+    missing = pd.Series(np.nan, index=z.index)
+    neutral = pd.Series(False, index=z.index)
+    rsi_signal = z.get('RSIsignal', missing)
+    bull = z.get('bull_state', neutral); bear = z.get('bear_state', neutral)
+    rsi_up = bull | ((z.RSI > rsi_signal) & (z.RSI.diff() > 0))
+    rsi_down = bear | ((z.RSI < rsi_signal) & (z.RSI.diff() < 0))
+    adx = z.get('ADX', missing)
+    dmi_up = (z.PDI > z.MDI) & (adx >= 20)
+    dmi_down = (z.PDI < z.MDI) & (adx >= 20)
+    stoch_up = (z.SlowK > z.SlowD) & (z.SlowK.diff() > 0)
+    stoch_down = (z.SlowK < z.SlowD) & (z.SlowK.diff() < 0)
+    buy = z.sig.eq('매수'); sell = z.sig.eq('매도')
+    up_count = rsi_up.astype(int)+dmi_up.astype(int)+stoch_up.astype(int)
+    down_count = rsi_down.astype(int)+dmi_down.astype(int)+stoch_down.astype(int)
+    z['strength_count'] = np.where(buy, up_count, np.where(sell, down_count, 0))
+    z['signal_label'] = z.sig.copy()
+    z.loc[buy & (up_count == 3) & ~bear, 'signal_label'] = '강력매수'
+    z.loc[sell & (down_count == 3) & ~bull, 'signal_label'] = '강력매도'
+    z.loc[sell & z.get('stop_trigger',neutral), 'signal_label'] = '손절 매도'
+    strong = z.signal_label.isin(['강력매수','강력매도'])
+    z.loc[strong,'reason'] = z.loc[strong,'reason']+' · 강도 확인: RSI·DMI(ADX≥20)·스토캐스틱 3/3 일치'
     return z
 
 
@@ -228,8 +255,8 @@ def chart(z, days):
     for _, r in view[view.sig.isin(['매수','매도'])].iterrows():
         buy = r.sig == '매수'; offset = max(r.high-r.low, r.close*.015)
         fig.add_annotation(x=r.time.tz_localize(None), y=r.low-offset*.3 if buy else r.high+offset*.3,
-            text=r.sig, showarrow=True, arrowhead=2, arrowwidth=3,
-            arrowcolor='#087f72' if buy else '#7841ad', font=dict(color='#087f72' if buy else '#7841ad',size=12),
+            text=r.get('signal_label',r.sig), showarrow=True, arrowhead=2, arrowwidth=4 if str(r.get('signal_label','')).startswith('강력') else 3,
+            arrowcolor='#087f72' if buy else '#7841ad', font=dict(color='#087f72' if buy else '#7841ad',size=13 if str(r.get('signal_label','')).startswith('강력') else 12),
             ax=0, ay=42 if buy else -42)
     low, high = view.low.min(), view.high.max()
     padding = max((high-low)*.14, high*.025)
@@ -279,7 +306,7 @@ def main():
     }
     </style>""",unsafe_allow_html=True)
     st.title('BTC · ETH 일봉 매매')
-    st.caption('확정 일봉 · 4시간 확인 · 종가 10% 손절 · v8')
+    st.caption('확정 일봉 · 4시간 확인 · 종가 10% 손절 · 강력 신호 · v9')
     a,b,c=st.columns([2,2,1])
     coin=a.selectbox('코인',['Bitcoin (BTC)','Ethereum (ETH)'])
     period=b.selectbox('차트 기간',['1개월','3개월','6개월','1년','2년'],index=1)
@@ -296,6 +323,7 @@ def main():
             st.caption(f"추가 지표: EMA({selected['ema_period']}) · 종가가 EMA 위일 때만 기존 매수 허용 · 종가 하향돌파 추가 매도")
         else:
             st.caption('EMA 추가 실험에서 BTC 수익률이 감소하여 기본 조건에서는 적용하지 않습니다. 수동 조건에서 사용할 수 있습니다.')
+        st.caption('강력매수·강력매도: 기존 신호에 RSI 방향, DMI 방향(ADX≥20), Slow %K/%D 방향과 %K 추세가 모두 일치하고 반대 다이버전스가 없을 때 표시합니다. RSI 방향은 다이버전스 또는 RSI가 신호선 위에서 상승/아래에서 하락하는 경우입니다. 강력은 조건 일치도를 뜻하며 적중률을 보장하지 않습니다. 손절은 별도 표시합니다.')
         st.caption('손절: 확정 일봉 종가 ≤ 모의 매수가 × 90%이면 매도. 기존 매도 조건은 유지하며 손절을 우선합니다. 모의 매수가는 매수 신호 다음 일봉 시가에 슬리피지 0.03%를 반영한 가격으로, 실제 계좌 매수가와 다릅니다.')
         use_ema=st.checkbox('수동 조건: EMA(50) 매수 필터 및 하향돌파 매도',value=True)
         window=st.number_input('다이버전스 추세 비교 일봉 수',min_value=5,max_value=60,value=14)
@@ -317,11 +345,11 @@ def main():
         previous_check=st.session_state.get(alert_key,checked_at)
         fresh=z[(z.confirmed_at>previous_check)&z.sig.isin(['매수','매도'])]
         for _,event in fresh.iterrows():
-            st.toast(f'{market} {event.sig} · {event.confirmed_at:%m/%d %H:%M} · {event.reason}',icon='🔔')
+            st.toast(f'{market} {event.signal_label} · {event.confirmed_at:%m/%d %H:%M} · {event.reason}',icon='🔔')
         st.session_state[alert_key]=checked_at
         a,b,c=st.columns(3)
         a.metric('조회 가격',f'₩{current.close:,.0f}')
-        b.metric('일봉 신호',last.sig)
+        b.metric('일봉 신호',last.signal_label)
         c.metric('신호 상태',last.signal_state)
         st.caption(f'판단 일봉 {last.time:%m/%d} · 확인 {checked_at:%H:%M} KST · 청록 매수 / 보라 매도')
         days={'1개월':30,'3개월':90,'6개월':180,'1년':365,'2년':730}[period]
@@ -340,7 +368,7 @@ def main():
             if events.empty:
                 st.info('매매 신호가 없습니다.')
             else:
-                table=events[['confirmed_at','sig','close','reason']].copy()
+                table=events[['confirmed_at','signal_label','close','reason']].copy()
                 table['confirmed_at']=table.confirmed_at.dt.strftime('%Y-%m-%d %H:%M')
                 table.columns=['신호 확정시각(KST)','신호','판단 종가(원)','판단 근거']
                 st.dataframe(table,use_container_width=True,hide_index=True)
