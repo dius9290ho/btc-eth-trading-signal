@@ -73,6 +73,59 @@ def label_dmi_strength(z):
     return z
 
 
+def intraday_monitor(raw, market, strategy='v14', previous=None, now=None):
+    """Observe live daily indicators; state changes are alerts, never fills."""
+    now = pd.Timestamp.now(tz='Asia/Seoul') if now is None else pd.Timestamp(now).tz_convert('Asia/Seoul')
+    raw = raw[raw.time <= now].reset_index(drop=True)
+    if len(raw) < 60:
+        raise ValueError('장중 판단에 필요한 일봉 자료가 부족합니다.')
+    z = active_signals(indicators(raw),market,strategy=strategy)
+    r = z.iloc[-1]
+    provisional = bool(r.time+pd.Timedelta(days=1)>now)
+    gap = float(r.PDI-r.MDI)
+    if not np.isfinite(gap) or not np.isfinite(r.ADX):
+        raise ValueError('장중 DMI 값이 유효하지 않습니다.')
+    valid_previous = previous is not None and previous.get('market')==market and previous.get('strategy')==strategy
+    old = previous if valid_previous else {}
+    # v14 live direction can reverse inside the day, even when yesterday's
+    # daily-cross reference is unchanged. Daily backtests remain untouched.
+    if strategy=='v14':
+        direction = '매수' if gap>0 else '매도' if gap<0 else '관망'
+        widening = gap > float(z.PDI.iloc[-2]-z.MDI.iloc[-2]) if gap>0 else gap < float(z.PDI.iloc[-2]-z.MDI.iloc[-2])
+        strong = bool(r.ADX>=20 and r.ADX>z.ADX.iloc[-2] and widening and direction!='관망')
+        reason = f'DMI(14) 현재 방향: '+('+DI > −DI' if gap>0 else '−DI > +DI' if gap<0 else '+DI = −DI')
+        if strong:
+            reason += ' · ADX≥20 및 전일 대비 상승 · 우세 DI 격차 확대'
+    else:
+        candidate = str(r.candidate_sig)
+        direction = candidate if candidate in ('매수','매도') else '관망' if candidate=='관망(충돌)' else old.get('direction', '매수' if r.signal_state=='매수 이후' else '매도' if r.signal_state=='매도 이후' else '관망')
+        forced = z.copy(); forced.loc[forced.index[-1],'sig']=direction
+        labelled = label_strength(forced)
+        strong = bool(labelled.signal_label.iloc[-1] in ('강력매수','강력매도'))
+        reason = str(r.buy_reason if direction=='매수' else r.sell_reason if direction=='매도' else '매수·매도 조건 충돌')
+        if not reason:
+            reason = '새 반대 조건 없음 · 직전 판단 방향 유지'
+    stop = bool(pd.notna(r.stop_price) and pd.notna(r.sim_entry_price) and float(r.close)<=float(r.stop_price))
+    if stop:
+        strong = bool(strong and gap<0)
+        direction='매도'
+        reason=f'현재가가 모의 매수가 대비 10% 손절 기준 이하 · 모의 매수가 ₩{r.sim_entry_price:,.0f} · 기준 ₩{r.stop_price:,.0f} · 종가 확정 전 경고'
+    label = '손절 경고' if stop else '강력'+direction if strong and direction in ('매수','매도') else direction
+    old_direction=old.get('direction')
+    phase_warned = bool(old.get('sell_warned',False)) if direction==old_direction else False
+    changed_direction = valid_previous and direction!=old_direction
+    upgrade = valid_previous and direction=='매도' and old_direction=='매도' and strong and not phase_warned
+    stop_upgrade = valid_previous and stop and not old.get('stop_trigger',False)
+    alert = bool(changed_direction or upgrade or stop_upgrade)
+    if direction=='매수':
+        phase_warned=False
+    elif direction=='매도' and strong:
+        phase_warned=True
+    kind = '장중 손절 경고' if stop_upgrade or (stop and changed_direction) else '장중 강력매도 추가 경고' if upgrade else '장중 방향 전환' if changed_direction else ''
+    state = {'market':market,'strategy':strategy,'checked_at':now.isoformat(),'candle_at':r.time.isoformat(),'direction':direction,'signal_label':label,'strong':strong,'sell_warned':phase_warned,'stop_trigger':stop,'price':float(r.close),'is_provisional':provisional,'reason':reason}
+    return {'state':state,'alert_event':alert,'event_kind':kind,'upgrade_warning':bool(upgrade),'previous_label':old.get('signal_label',''),'signal_label':label,'reason':reason}
+
+
 def wilder(series, period):
     """SMA seed followed by Wilder recursive smoothing, retaining warm-up NaNs."""
     out = pd.Series(np.nan, index=series.index, dtype=float)
@@ -449,7 +502,7 @@ def main():
     }
     </style>""",unsafe_allow_html=True)
     st.title('BTC · ETH 일봉 매매')
-    st.caption('확정 일봉 · 종가 10% 손절 · 4시간 확인 · 버전 선택')
+    st.caption('일봉 지표 · 장중 4시간 확인 · 변화 시 알림 · 버전 선택')
     coin=st.radio('코인',['비트코인 (BTC)','이더리움 (ETH)'],index=0,horizontal=True,label_visibility='collapsed',key='display_coin')
     strategy_choice=st.radio('매매 판단 버전',['v14 · DMI·손절','v13 · 복합지표'],index=0,horizontal=True,key='display_strategy')
     strategy='v14' if strategy_choice.startswith('v14') else 'v13'
@@ -472,7 +525,7 @@ def main():
             st.caption('DMI(14), RSI(14) 다이버전스, Slow Stochastic(30/10/10) 조합. BTC는 30일 다이버전스와 DMI 하향교차 조기청산, ETH는 14일 다이버전스와 EMA(50), MACD 히스토그램 양수 및 +DI − −DI ≥ 2포인트 매수 확인을 적용합니다. v13의 기존 매매 조건을 그대로 사용합니다.')
             st.caption('강력 신호는 RSI 방향·DMI 방향(ADX≥20)·스토캐스틱 방향이 일치할 때 표시합니다. 일반 매도 이후 강력매도 조건이 강화되면 다음 매수 전까지 추가 경고 1회. 매수 이후 강력매수 추가 알림은 없습니다.')
             st.caption('손절은 확정 일봉 종가가 모의 매수가의 90% 이하일 때 판단합니다. 실제 계좌와 연동되지 않으며 실제 손실이 10%를 넘을 수 있습니다.')
-        st.caption('두 버전 모두 확정 일봉 기준, 4시간마다 확인합니다. 선택한 버전은 차트·신호 이력·백테스트에 함께 적용됩니다. 앱 밖 예약 알림은 v14 기준입니다.')
+        st.caption('장중 판단은 진행 중인 일봉의 현재가·고가·저가로 4시간마다 재계산합니다. 신호 방향 변화·강력매도 강화·손절 기준 도달 시만 알림을 내며 최초 조회는 기준 상태만 저장합니다. 확정 이력·백테스트는 마감 일봉만 사용합니다. 앱 밖 예약 알림은 v14 기준입니다.')
     market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
     try:
         with st.spinner('일봉 데이터를 분석하고 있습니다…'):
@@ -483,30 +536,32 @@ def main():
         z=active_signals(indicators(closed),market,strategy=strategy)
         last=z.iloc[-1]; current=raw.iloc[-1]
         checked_at=pd.Timestamp.now(tz='Asia/Seoul')
-        alert_key=f'monitor_check_{market}_{strategy}'
+        live_key=f'intraday_monitor_{market}_{strategy}'
         selection=(market,strategy)
-        previous_check=st.session_state.get(alert_key,checked_at) if st.session_state.get('monitor_selection')==selection else checked_at
-        fresh=z[(z.confirmed_at>previous_check)&(z.confirmed_at<=checked_at)&z.alert_event]
-        for _,event in fresh.iterrows():
-            st.toast(f'{strategy} · {market} {event.signal_label} · {event.confirmed_at:%m/%d %H:%M} · {event.reason}',icon='🔔')
-        st.session_state[alert_key]=checked_at
+        previous_live=st.session_state.get(live_key) if st.session_state.get('monitor_selection')==selection else None
+        live=intraday_monitor(raw,market,strategy=strategy,previous=previous_live,now=checked_at)
+        st.session_state[live_key]=live['state']
         st.session_state['monitor_selection']=selection
+        if live['alert_event']:
+            st.toast(f"장중 미확정 · {strategy} · {market} {live['previous_label']} → {live['signal_label']} · {checked_at:%m/%d %H:%M} · {live['reason']}",icon='🔔')
         a,b,c=st.columns(3)
         a.metric('조회 가격',f'₩{current.close:,.0f}')
-        b.metric('일봉 신호',last.signal_label)
-        c.metric('신호 상태',last.signal_state)
-        st.caption(f'{strategy} 적용 · 판단 일봉 {last.time:%m/%d} · 확인 {checked_at:%H:%M} KST · 청록 매수 / 보라 매도')
+        b.metric('장중 신호 · 미확정',live['signal_label'])
+        c.metric('확정 일봉 상태',last.signal_state)
+        st.caption(f'{strategy} 적용 · 장중 확인 {checked_at:%m/%d %H:%M} KST · 확정 일봉 {last.time:%m/%d} · 청록 매수 / 보라 매도')
         days={'1개월':30,'3개월':90,'6개월':180,'1년':365,'2년':730,'3년':1096}[period]
         st.plotly_chart(chart(z,days),use_container_width=True)
         with st.expander('판단 근거 · 모니터링 안내',expanded=False):
             st.caption(f'선택한 매매 판단: {strategy_choice}')
+            st.write('장중 판단: '+live['reason'])
+            st.caption('장중 신호는 미확정입니다. 같은 날 매수에서 매도·강력매도로 바뀔 수 있고, 마감 시 사라질 수 있습니다. 장중 알림을 거래로 가정한 수익률이 아닙니다.')
             st.write(f"신호 확정: {last.confirmed_at:%Y-%m-%d %H:%M} KST · 근거: {last.reason or '새로운 매매 조건이 없습니다.'}")
             if last.signal_state == '매수 이후' and pd.notna(last.stop_price):
                 st.write(f'현재 모의 손절 기준 ₩{last.stop_price:,.0f} · 모의 매수가 ₩{last.sim_entry_price:,.0f}')
             st.caption(f'이번 확인 {checked_at:%Y-%m-%d %H:%M} · 다음 앱 확인 {checked_at+pd.Timedelta(hours=4):%m-%d %H:%M} KST')
-            st.caption('앱이 열려 있으면 선택한 버전으로 4시간마다 재확인합니다. 새로고침·코인/버전 변경 시에도 즉시 계산합니다. 일봉은 KST 09:00 마감, 진행 중인 일봉은 제외합니다. 앱 밖 ChatGPT 예약 알림은 v14 기준으로 유지됩니다. 화면의 버전 선택은 예약 알림 설정을 변경하지 않습니다. 자동주문은 없습니다.')
+            st.caption('앱이 열려 있으면 선택한 버전으로 진행 중인 일봉을 4시간마다 재확인하며 변화가 있을 때만 알립니다. 새로고침·코인/버전 변경 시에도 계산합니다. 4시간 사이에 발생했다가 사라진 변화는 포착하지 못합니다. 확정 이력·백테스트만 KST 09:00 마감 일봉을 사용합니다. 앱 밖 예약 알림은 v14 기준이며 화면의 버전 선택과 별개입니다. 자동주문은 없습니다.')
             st.caption('종가 10% 손절은 모의 매수가 기준입니다. 실제 계좌와 연동되지 않으며, 마감·알림·체결 지연으로 실제 손실이 10%를 넘을 수 있습니다. 조회 가격은 5분 캐시 또는 새로고침으로 갱신합니다.')
-        tab1,tab2=st.tabs(['매매 신호 이력','백테스트'])
+        tab1,tab2=st.tabs(['확정 매매 신호 이력','백테스트'])
         with tab1:
             events=z[z.alert_event].sort_values('confirmed_at',ascending=False).head(100)
             if events.empty:
