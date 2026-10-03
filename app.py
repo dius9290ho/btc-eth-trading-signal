@@ -248,25 +248,25 @@ def main():
     st.set_page_config(page_title='BTC · ETH 일봉 매매 신호',page_icon='₿',layout='wide')
     st.markdown("""<style>
     .stApp{background:#f4f6fa;color:#18263d;font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif}
-    .block-container{max-width:1180px;padding:1rem 1.2rem 2rem}
+    .block-container{max-width:1180px;padding:4.25rem 1.2rem 2rem}
     [data-testid="stVerticalBlock"]{gap:.65rem}
     h1{font-size:1.65rem!important;line-height:1.25!important;padding:.2rem 0!important;font-weight:750!important;color:#172b4d}
     p,label{font-size:15px!important;line-height:1.5!important}
     [data-testid="stCaptionContainer"] p{font-size:13px!important;color:#53647c!important}
     [data-testid="stMetric"]{background:#fff;border:1px solid #dce4ee;border-top:3px solid #55789f;padding:10px 14px;border-radius:10px}
     [data-testid="stMetricLabel"] p{font-size:13px!important;color:#53647c}
-    [data-testid="stMetricValue"]{font-size:1.4rem!important;font-weight:700}
+    [data-testid="stMetricValue"],[data-testid="stMetricValue"] *{font-size:1.4rem!important;font-weight:700}
     [data-testid="stExpander"]{background:#fff;border-color:#dce4ee;border-radius:9px}
     [data-testid="stPlotlyChart"]{background:#fff;border:1px solid #dce4ee;border-radius:12px;overflow:hidden}
     .stButton button{min-height:40px;border-color:#cbd8e7;border-radius:8px;font-weight:600}
     [data-baseweb="tab"]{font-size:15px;font-weight:650}
     @media(max-width:640px){
-      .block-container{padding:.6rem .65rem 1.5rem}
+      .block-container{padding:4rem .65rem 1.5rem}
       h1{font-size:1.3rem!important}
       [data-testid="stHorizontalBlock"]{flex-wrap:nowrap!important;gap:.45rem!important}
       [data-testid="stHorizontalBlock"]>[data-testid="stColumn"]{min-width:0!important;flex:1 1 0!important}
       [data-testid="stMetric"]{padding:8px 6px}
-      [data-testid="stMetricValue"]{font-size:1rem!important}
+      [data-testid="stMetricValue"],[data-testid="stMetricValue"] *{font-size:1rem!important}
       [data-testid="stMetricLabel"] p{font-size:11px!important}
       p,label{font-size:14px!important}
     }
