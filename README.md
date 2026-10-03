@@ -1,21 +1,23 @@
-# BTC · ETH 일봉 매매 신호
+# BTC · ETH daily signals v2
 
-Streamlit app for Upbit KRW-BTC and KRW-ETH, using completed daily candles only. Upbit daily candles close at 09:00 KST. Data is cached for five minutes; refresh clears the cache.
+Upbit KRW-BTC and KRW-ETH, confirmed daily candles only; daily close at 09:00 KST. Five-minute cached data with manual refresh.
 
-## Rules
-- Wilder DMI and RSI, default period 14, SMA initialization.
-- Buy: +DI crosses above -DI with RSI below 70; RSI crosses above 30; or bullish close/RSI divergence.
-- Sell: +DI crosses below -DI with RSI above 30; RSI crosses below 70; or bearish close/RSI divergence.
-- Conditions are alternatives (OR). Opposite conditions on one candle yield conflict/wait.
-- Divergence compares consecutive strict local closing-price lows/highs and RSI at those points, no more than 60 days apart. Each pivot needs two candles on both sides by default. Signal is emitted on the confirmation candle, never backdated to the pivot. Daily close-to-close opposite direction is not possible for standard RSI; swing comparison is used.
-- ADX is displayed for context, without filtering signals.
+## Indicators
+- Wilder RSI(14) and DMI(14), SMA seeded; RSI signal line SMA(9), ADX for context.
+- Slow Stochastic(30,10,10): raw %K = 100*(close-lowest low over 30)/(highest high over 30-lowest low over 30). Slow %K is SMA(10) of raw %K; Slow %D is SMA(10) of Slow %K. Zero price range uses neutral 50. Warm-up is preserved.
 
-## Display and backtest
-Price, RSI and DMI panels, separated arrow colors, divergence lines, latest confirmed signal, and up to 100 recent events with reasons. Event history is independent of portfolio holdings; there is no automatic order placement or background push notification.
+## Trade rules
+- Default divergence window: 14 completed daily candles, adjustable 5–60. Linear regression slopes on closing price and RSI must point in opposite directions. Fitted price change >=1% and fitted RSI change >=3 points (adjustable). Window endpoint changes must agree with the regression directions.
+- Rising close trend + falling RSI trend: sell divergence; falling close trend + rising RSI trend: buy divergence. Signal fires on onset of the condition, not repeatedly while the condition persists. Current divergence state remains visible. No pivot confirmation delay or future data.
+- Buy also on DMI up-cross when Slow %K>%D, OR on Slow %K/%D up-cross when +DI>-DI.
+- Sell also on the opposite confirmed cross conditions. Simultaneous buy/sell conditions produce conflict/wait.
+- Standalone RSI 30/70 crosses are no longer trade triggers. RSI and stochastic reference levels are displayed.
 
-Backtest starts in cash over the selected chart period. Indicators use earlier history. Orders execute at the next available candle open after the signal; spot long-only, minimum 24-hour holding, fee 0.05% and slippage 0.03% per side. Final pending signals remain unfilled. Equity includes unrealized holdings valued net of liquidation costs. No parameter optimization or claimed out-of-sample validation.
+Price, RSI, Slow Stochastic and DMI panels; divergent intervals are connected on price/RSI charts, signals marked with blue/purple arrows. History contains up to 100 events with exact reasons and indicator values. No automatic orders or background push notifications.
 
-## Run
+## Backtest
+Cash-only start over the selected chart window, historical indicator warm-up, next available open after confirmed signal, long-only spot, minimum 24h holding. Per side: fee 0.05%, slippage 0.03%. Pending final signals stay unfilled. Equity includes open-position value net of liquidation costs. Historical simulation is not a forecast or optimized strategy.
+
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
