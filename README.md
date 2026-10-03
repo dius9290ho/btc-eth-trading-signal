@@ -54,3 +54,8 @@ sequence_signals handles entry anchors, stop_price and stop_trigger. Generic sig
 
 ## v8 compact responsive display
 Main page shows a compact title, coin/period/refresh row, three summary cards and a410px daily chart. Detailed stop rules and monitoring explanations are folded into expanders, including the current simulated stop threshold when holding. Light gray background, white cards, dark navy text, larger main labels, red rising/blue falling candles and blue buy/purple sell arrows. Price axis uses KRW units of 억 or 만 to avoid long numbers. Narrow screens keep control and summary rows side by side with smaller typography. Indicators stay hidden. All11 strategy/UI checks pass; no strategy or alert changes from v7.
+
+## v9 strength display
+signal_label displays 매수, 강력매수, 매도, 강력매도, 손절 매도 or wait. Underlying sig remains the alternating base direction; backtest decisions and profit are unchanged. Strong labels require all three same-direction families: RSI divergence-state OR RSI above/below its9-day signal with corresponding RSI daily change; DMI direction plus ADX>=20; SlowK above/below SlowD with corresponding SlowK daily change. Opposite RSI divergence blocks the strong label. Protective10% stop label takes priority. ADX is part of the already computed DMI family, not a new trade filter. No independent new buy/sell is generated on a strength upgrade.
+
+Chart annotations, metrics, history CSV and four-hour alerts display signal_label; event detection/deduplication continue to use sig. Strong means indicator agreement, not established higher accuracy or a profit guarantee. Twelve tests pass. Current colors: distinct light-blue background, navy text/buttons, coral rising candles, blue falling candles, teal buy markers, violet sell markers.
