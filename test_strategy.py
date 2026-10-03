@@ -42,7 +42,11 @@ class StrategyTests(unittest.TestCase):
             rebuy=app.intraday_monitor(raw,'KRW-BTC',previous=again['state'],now=now)
             self.assertTrue(rebuy['alert_event'])
             z.loc[69,'ADX']=22.
-            self.assertFalse(app.intraday_monitor(raw,'KRW-BTC',previous=rebuy['state'],now=now)['alert_event'])
+            strong_buy=app.intraday_monitor(raw,'KRW-BTC',previous=rebuy['state'],now=now)
+            self.assertTrue(strong_buy['alert_event'])
+            self.assertEqual(strong_buy['signal_label'],'강력매수')
+            self.assertEqual(strong_buy['event_kind'],'장중 강력매수 추가 확인')
+            self.assertFalse(app.intraday_monitor(raw,'KRW-BTC',previous=strong_buy['state'],now=now)['alert_event'])
             self.assertFalse(app.intraday_monitor(raw,'KRW-BTC',strategy='v13',previous=rebuy['state'],now=now)['alert_event'])
 
     def test_intraday_stop_is_warning_and_v13_uses_candidate(self):
