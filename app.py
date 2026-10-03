@@ -1,249 +1,250 @@
-import streamlit as st
-import pandas as pd
+import time
 import numpy as np
+import pandas as pd
 import requests
+import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
 
-st.set_page_config(page_title='BTC · ETH Signal', page_icon='₿', layout='wide')
-st.markdown('''<style>
-.stApp{background:linear-gradient(135deg,#f7f9fc,#eef3f9 55%,#f8fafc);color:#172033}
-.block-container{padding-top:1.3rem;max-width:1400px}
-.hero{padding:12px 18px;border:1px solid #26334d;border-radius:22px;background:#ffffff;box-shadow:0 10px 30px rgba(35,55,85,.10);margin-bottom:8px}
-.hero h1{margin:0;font-size:1.45rem}.muted{color:#60708a}.pill{display:inline-block;padding:7px 12px;border-radius:999px;background:#eef3f9;border:1px solid #d5deea;margin-right:6px}
-[data-testid="stMetric"]{background:#ffffff;border:1px solid #d9e1ec;padding:8px;border-radius:14px}
-.signal{font-size:1.35rem;font-weight:800;padding:8px 12px;border-radius:16px;text-align:center;background:#ffffff;border:1px solid #ccd7e6}
-[data-testid="stMetricValue"]{font-size:clamp(1.45rem,4vw,2.25rem);white-space:nowrap}
-div[data-testid="stSegmentedControl"] button{min-height:46px}
-@media (max-width: 768px){
- .block-container{padding:.7rem .75rem 2rem}
- .hero{padding:16px 16px;border-radius:18px;margin-bottom:12px}
- .hero h1{font-size:1.65rem;line-height:1.2}
- .hero .muted{display:none}
- [data-testid="stHorizontalBlock"]{gap:.55rem}
- [data-testid="stMetric"]{padding:10px;border-radius:14px;min-width:0}
- [data-testid="stMetricLabel"]{font-size:.78rem}
- [data-testid="stMetricValue"]{font-size:1.35rem!important}
- [data-testid="stMetricDelta"]{font-size:.75rem}
- .signal{font-size:1.1rem;padding:8px 8px}
- div[data-testid="stSegmentedControl"] button{font-size:.88rem;padding-left:.55rem;padding-right:.55rem}
-}
-</style>''', unsafe_allow_html=True)
+VERSION = '일봉 DMI · RSI · Divergence / 2026-10-03'
 
-st.markdown("<div class='hero'><h1>₿ BTC · ETH Trading Signal</h1><div class='muted'>가격 추세와 기술지표를 한 화면에서 확인하는 분석용 대시보드</div></div>", unsafe_allow_html=True)
 
-@st.cache_data(ttl=300)
-def upbit_candles(market, unit, count=1000):
-    url=f'https://api.upbit.com/v1/candles/minutes/{unit}'
-    rows=[]; to=None
-    while len(rows)<count:
-        n=min(200,count-len(rows)); params={'market':market,'count':n}
-        if to: params['to']=to
-        r=requests.get(url,params=params,timeout=10); r.raise_for_status()
-        batch=r.json()
-        if not batch: break
-        rows.extend(batch)
-        oldest=pd.to_datetime(batch[-1]['candle_date_time_utc'])-pd.Timedelta(seconds=1)
-        to=oldest.strftime('%Y-%m-%dT%H:%M:%S')
-    d=pd.DataFrame(rows).drop_duplicates('candle_date_time_kst').sort_values('candle_date_time_kst')
-    d['time']=pd.to_datetime(d['candle_date_time_kst'])
-    d=d.rename(columns={'opening_price':'open','high_price':'high','low_price':'low','trade_price':'close','candle_acc_trade_volume':'volume'})
-    return d[['time','open','high','low','close','volume']].reset_index(drop=True)
+def wilder(series, period):
+    """SMA seed followed by Wilder recursive smoothing, retaining warm-up NaNs."""
+    out = pd.Series(np.nan, index=series.index, dtype=float)
+    seed = series.rolling(period, min_periods=period).mean().first_valid_index()
+    if seed is None:
+        return out
+    start = series.index.get_loc(seed)
+    out.iloc[start] = series.iloc[start-period+1:start+1].mean()
+    for i in range(start+1, len(series)):
+        out.iloc[i] = (out.iloc[i-1]*(period-1)+series.iloc[i])/period
+    return out
 
-def indicators(d):
-    x=d.copy(); c=x.close
-    x['EMA20']=c.ewm(span=20,adjust=False).mean()
-    x['EMA50']=c.ewm(span=50,adjust=False).mean()
-    x['EMA100']=c.ewm(span=100,adjust=False).mean()
-    delta=c.diff(); gain=delta.clip(lower=0).ewm(alpha=1/14,adjust=False).mean(); loss=(-delta.clip(upper=0)).ewm(alpha=1/14,adjust=False).mean()
-    rs=gain/loss.replace(0,np.nan); x['RSI']=100-(100/(1+rs))
-    e12=c.ewm(span=12,adjust=False).mean(); e26=c.ewm(span=26,adjust=False).mean()
-    x['MACD']=e12-e26; x['MACDsig']=x.MACD.ewm(span=9,adjust=False).mean()
-    tr=pd.concat([(x.high-x.low),(x.high-c.shift()).abs(),(x.low-c.shift()).abs()],axis=1).max(axis=1)
-    x['ATR']=tr.ewm(alpha=1/14,adjust=False).mean()
-    x['VOLMA20']=x.volume.rolling(20).mean()
-    mid=c.rolling(20).mean(); sd=c.rolling(20).std()
-    x['BBmid']=mid; x['BBupper']=mid+2*sd; x['BBlower']=mid-2*sd
-    low14=x.low.rolling(14).min(); high14=x.high.rolling(14).max()
-    x['STOCHK']=100*(c-low14)/(high14-low14).replace(0,np.nan)
-    up=x.high.diff(); dn=-x.low.diff()
-    plus=np.where((up>dn)&(up>0),up,0.0); minus=np.where((dn>up)&(dn>0),dn,0.0)
-    atr=x['ATR'].replace(0,np.nan)
-    pdi=100*pd.Series(plus,index=x.index).ewm(alpha=1/14,adjust=False).mean()/atr
-    mdi=100*pd.Series(minus,index=x.index).ewm(alpha=1/14,adjust=False).mean()/atr
-    x['PDI']=pdi; x['MDI']=mdi
-    x['ADX']=(100*(pdi-mdi).abs()/(pdi+mdi).replace(0,np.nan)).ewm(alpha=1/14,adjust=False).mean()
-    x['DMIbull']=(x.PDI>x.MDI)
-    x['DMIcrossUp']=(x.PDI>x.MDI)&(x.PDI.shift(1)<=x.MDI.shift(1))
-    x['DMIcrossDown']=(x.PDI<x.MDI)&(x.PDI.shift(1)>=x.MDI.shift(1))
+
+def indicators(raw, period=14):
+    x = raw.reset_index(drop=True).copy()
+    delta = x.close.diff()
+    gain, loss = wilder(delta.clip(lower=0), period), wilder((-delta).clip(lower=0), period)
+    x['RSI'] = 100-100/(1+gain/loss.replace(0, np.nan))
+    x.loc[(loss == 0) & (gain > 0), 'RSI'] = 100
+    x.loc[(gain == 0) & (loss > 0), 'RSI'] = 0
+    x.loc[(gain == 0) & (loss == 0), 'RSI'] = 50
+    up, down = x.high.diff(), -x.low.diff()
+    plus = up.where((up > down) & (up > 0), 0.0)
+    minus = down.where((down > up) & (down > 0), 0.0)
+    plus.iloc[0] = minus.iloc[0] = np.nan
+    tr = pd.concat([x.high-x.low, (x.high-x.close.shift()).abs(), (x.low-x.close.shift()).abs()], axis=1).max(axis=1)
+    tr.iloc[0] = np.nan
+    atr = wilder(tr, period)
+    x['PDI'] = (100*wilder(plus, period)/atr.replace(0, np.nan)).where(atr != 0, 0)
+    x['MDI'] = (100*wilder(minus, period)/atr.replace(0, np.nan)).where(atr != 0, 0)
+    total = x.PDI+x.MDI
+    dx = (100*(x.PDI-x.MDI).abs()/total.replace(0, np.nan)).where(total != 0, 0)
+    x['ADX'] = wilder(dx, period)
     return x
 
-def trade_engine(x, p=None, fee=0.0005, slip=0.0003):
-    if p is None: p={'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':7,'hold':6}
-    z=x.copy()
-    tests=pd.DataFrame(index=z.index)
-    tests['trend']=(z.close>z.EMA100)&(z.EMA20>z.EMA50)
-    tests['macd']=(z.MACD>z.MACDsig)
-    tests['rsi']=z.RSI.between(p['rsi_lo'],p['rsi_hi'])
-    tests['adx']=z.ADX>=p['adx']
-    tests['dmi']=z.DMIbull
-    tests['volume']=z.volume>=z.VOLMA20*p['vol']
-    tests['bb']=z.close>=z.BBmid
-    tests['stoch']=z.STOCHK.between(35,85)
-    z['signal_score']=tests.sum(axis=1)
-    z['entry_ok']=z['signal_score']>=p['score']
-    z['exit_ok']=(z.close<z.EMA20)|(z.MACD<z.MACDsig)|(z.RSI>76)|(z.STOCHK>92)|z.DMIcrossDown
-    sig=['관망']*len(z); trades=[]; in_pos=False; entry=0; entry_i=None; peak=0
-    for i in range(1,len(z)):
-        r=z.iloc[i]
-        if not in_pos and bool(r.entry_ok) and not bool(z.iloc[i-1].entry_ok):
-            in_pos=True; entry=r.close*(1+slip); entry_i=i; peak=r.close; sig[i]='매수'
-        elif in_pos:
-            peak=max(peak,r.close); atrv=r.ATR
-            stop=entry-p['stop']*atrv; trail=peak-p['trail']*atrv; take=entry+p['take']*atrv
-            held_hours=(r.time-z.iloc[entry_i].time).total_seconds()/3600
-            # 매수 후 최소 24시간 보유: 24시간이 지나기 전에는 어떤 매도 신호도 실행하지 않음
-            if held_hours>=p.get('hold',6) and (bool(r.exit_ok) or r.close<=max(stop,trail) or r.close>=take):
-                out=r.close*(1-slip); net=(out/entry-1)-2*fee
-                trades.append({'entry_time':z.iloc[entry_i].time,'entry':entry,'exit_time':r.time,'exit':out,'return':net})
-                in_pos=False; sig[i]='매도'
-    z['sig']=sig
-    return z,pd.DataFrame(trades)
 
-def optimize_strategy(d):
-    # 모바일에서도 빠르게 끝나도록 후보군을 제한한 경량 최적화
-    split=max(180,int(len(d)*0.70)); train=d.iloc[:split]
-    candidates=[]
-    base=[
-      {'score':7,'adx':12,'hold':0,'stop':1.2,'trail':1.8,'take':2.5},
-      {'score':7,'adx':18,'hold':3,'stop':1.2,'trail':1.8,'take':2.5},
-      {'score':7,'adx':18,'hold':6,'stop':1.5,'trail':2.0,'take':3.0},
-      {'score':7,'adx':24,'hold':12,'stop':1.5,'trail':2.0,'take':3.0},
-      {'score':7,'adx':18,'hold':6,'stop':1.8,'trail':2.5,'take':4.0},
-      {'score':7,'adx':24,'hold':12,'stop':1.8,'trail':2.5,'take':4.0},
-      {'score':7,'adx':30,'hold':24,'stop':2.2,'trail':3.0,'take':5.0},
-      {'score':7,'adx':24,'hold':24,'stop':1.8,'trail':2.5,'take':4.0},
-      {'score':7,'adx':12,'hold':24,'stop':2.2,'trail':3.0,'take':5.0},
-      {'score':7,'adx':18,'hold':36,'stop':2.2,'trail':3.0,'take':5.0},
-    ]
-    for q in base:
-        p={'rsi_lo':48,'rsi_hi':72,'vol':0.85,**q}
-        _,t=trade_engine(train,p); s=stats(t)
-        if s['n']>=2: candidates.append((s['total'],p))
-    p=max(candidates,key=lambda q:q[0])[1] if candidates else {'rsi_lo':50,'rsi_hi':68,'adx':18,'vol':0.9,'stop':1.5,'trail':2.0,'take':3.0,'score':7,'hold':6}
-    eng,trades=trade_engine(d,p)
-    test=d.iloc[split:].copy(); _,test_trades=trade_engine(test,p)
-    return p,eng,trades,stats(test_trades),split
+def signals(x, oversold=30, overbought=70, pivot=2, max_gap=60):
+    """Only past/current rows are used; pivots are reported on confirmation day."""
+    z = x.copy()
+    z['buy_reason'] = ''; z['sell_reason'] = ''
+    z['bull_div'] = False; z['bear_div'] = False
+    z['div_from'] = -1; z['div_to'] = -1
+    previous_low = previous_high = None
+    for i in range(1, len(z)):
+        r, prev = z.iloc[i], z.iloc[i-1]
+        buys, sells = [], []
+        if pd.notna(r.RSI) and pd.notna(prev.RSI):
+            if r.PDI > r.MDI and prev.PDI <= prev.MDI and r.RSI < overbought:
+                buys.append('DMI 상향교차 · RSI 과매수 제외')
+            if r.PDI < r.MDI and prev.PDI >= prev.MDI and r.RSI > oversold:
+                sells.append('DMI 하향교차 · RSI 과매도 제외')
+            if prev.RSI <= oversold < r.RSI:
+                buys.append(f'RSI {oversold} 상향돌파')
+            if prev.RSI >= overbought > r.RSI:
+                sells.append(f'RSI {overbought} 하향돌파')
+        k = i-pivot
+        if k >= pivot and pd.notna(z.RSI.iloc[k]):
+            value = z.close.iloc[k]
+            left = z.close.iloc[k-pivot:k]; right = z.close.iloc[k+1:i+1]
+            is_low = value < left.min() and value < right.min()
+            is_high = value > left.max() and value > right.max()
+            if is_low:
+                a = previous_low
+                if a is not None and k-a <= max_gap and value < z.close.iloc[a] and z.RSI.iloc[k] > z.RSI.iloc[a]:
+                    buys.append('상승 다이버전스 · 종가 저점↓ / RSI 저점↑')
+                    z.loc[i, ['bull_div', 'div_from', 'div_to']] = [True, a, k]
+                previous_low = k
+            if is_high:
+                a = previous_high
+                if a is not None and k-a <= max_gap and value > z.close.iloc[a] and z.RSI.iloc[k] < z.RSI.iloc[a]:
+                    sells.append('하락 다이버전스 · 종가 고점↑ / RSI 고점↓')
+                    z.loc[i, ['bear_div', 'div_from', 'div_to']] = [True, a, k]
+                previous_high = k
+        z.loc[i, 'buy_reason'] = ' / '.join(buys)
+        z.loc[i, 'sell_reason'] = ' / '.join(sells)
+    buy, sell = z.buy_reason.ne(''), z.sell_reason.ne('')
+    z['sig'] = np.select([buy & sell, buy, sell], ['관망(충돌)', '매수', '매도'], default='관망')
+    z['reason'] = (z.buy_reason+' / '+z.sell_reason).str.strip(' /')
+    z['confirmed_at'] = z.time+pd.Timedelta(days=1)
+    return z
 
-def stats(trades):
-    if trades.empty: return {'n':0,'win':0,'avg':0,'total':0,'pf':0}
-    wins=trades[trades['return']>0]['return']; losses=trades[trades['return']<=0]['return']
-    pf=wins.sum()/abs(losses.sum()) if abs(losses.sum())>0 else np.inf
-    return {'n':len(trades),'win':(trades['return']>0).mean()*100,'avg':trades['return'].mean()*100,
-            'total':((1+trades['return']).prod()-1)*100,'pf':pf}
 
-c1,c2,c3=st.columns([1.2,1,1])
-with c1: coin=st.segmented_control('코인',['Bitcoin (BTC)','Ethereum (ETH)'],default='Bitcoin (BTC)')
-with c2:
-    period=st.segmented_control('차트 기간',['1일','1주','1개월'],default='1주')
-    unit=st.selectbox('캔들 간격',[15,30,60,240],index=2,format_func=lambda x:f'{x}분')
-with c3: st.caption('시세 데이터: Upbit 공개 API · 자동주문 없음')
-if coin is None:
-    coin='Bitcoin (BTC)'
-if period is None:
-    period='1주'
-market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
-try:
-    need={'1일':220,'1주':300,'1개월':750}[period]
-    raw=upbit_candles(market,unit,need); d=indicators(raw); last=d.iloc[-1]; prev=d.iloc[-2]
-    params,eng,trades,oos,split=optimize_strategy(d); bt=stats(trades)
-    active=(eng.sig.iloc[-1]=='매수') or (len(eng)>1 and '매수' in eng.sig.iloc[max(0,len(eng)-12):].values and '매도' not in eng.sig.iloc[max(0,len(eng)-12):].values)
-    lab='매수' if eng.sig.iloc[-1]=='매수' else '매도' if eng.sig.iloc[-1]=='매도' else '관망'
-    score=int(eng.signal_score.iloc[-1]); reasons=[f'복합지표 점수 {score}/7',f"ADX 기준 {params['adx']}",f"진입 {params['score']}/8 · DMI(+DI/-DI) · 최소보유 {params['hold']}시간"]
-    pct=(last.close/prev.close-1)*100
-    a,b,c,dcol=st.columns(4)
-    a.metric('현재가',f'₩{last.close/1_000_000:.2f}M' if last.close>=10_000_000 else f'₩{last.close:,.0f}',f'{pct:+.2f}%')
-    b.metric('RSI (14)',f'{last.RSI:.1f}')
-    c.metric('MACD',f'{last.MACD:,.0f}')
-    dcol.metric('전체 백테스트',f"{bt['total']:+.2f}%",f"OOS {oos['total']:+.2f}% · {oos['n']}회")
-    sig_color='#e53935' if '매도' in lab else '#00a86b' if '매수' in lab else '#60708a'
-    st.markdown(f"<div class='signal'>현재 종합 신호 · <span style='color:{sig_color}'>{lab}</span> &nbsp; | &nbsp; 복합점수 {score}/8</div>",unsafe_allow_html=True)
+def backtest(z, fee=0.0005, slip=0.0003):
+    """Signal at closed candle -> next available open, cash/spot only, >=24h hold."""
+    cash = 1.0; qty = 0.0; entry = None; records = []; equity = []
+    for i in range(len(z)):
+        row = z.iloc[i]
+        if i > 0:
+            signal = z.sig.iloc[i-1]
+            if signal == '매수' and qty == 0:
+                price = row.open*(1+slip)
+                qty = cash/(price*(1+fee)); cash = 0.0
+                entry = (row.time, price, qty*price*(1+fee))
+            elif signal == '매도' and qty > 0 and row.time-entry[0] >= pd.Timedelta(days=1):
+                price = row.open*(1-slip); cash = qty*price*(1-fee)
+                records.append({'매수시각': entry[0], '매도시각': row.time, '매수가': entry[1], '매도가': price, '수익률(%)': (cash/entry[2]-1)*100})
+                qty = 0.0; entry = None
+        equity.append(cash+qty*row.close*(1-slip)*(1-fee))
+    curve = pd.Series(equity, index=z.index)
+    dd = (curve/curve.cummax()-1).min()*100 if len(curve) else 0.0
+    return pd.DataFrame(records), curve, dd, qty > 0
 
-    ev=eng[eng.sig.isin(['매수','매도'])].copy()
-    ev['kind']=ev.sig
-    ev['score']=3
-    events=ev.sort_values('time',ascending=False).head(12)
-    if 'alert_page' not in st.session_state: st.session_state.alert_page=False
-    nav1,nav2=st.columns(2)
-    with nav1:
-        if st.button('📊 종목 분석',use_container_width=True,type='primary' if not st.session_state.alert_page else 'secondary'):
-            st.session_state.alert_page=False
-            st.rerun()
-    with nav2:
-        if st.button('🔔 매매 알림',use_container_width=True,type='primary' if st.session_state.alert_page else 'secondary'):
-            st.session_state.alert_page=True
-            st.rerun()
-    if st.session_state.alert_page:
-        st.markdown("### 🔔 BTC · ETH 매매 알림")
-        st.caption(f'{market} · 최근 매매 신호')
-        if len(events):
-            rows=[]
-            for _,ev in events.iterrows():
-                rows.append({
-                    '구분': '🟢 매수' if ev.kind=='매수' else '🔴 매도',
-                    '발생시간': ev.time.strftime('%m/%d %H:%M'),
-                    '가격': f"₩{ev.close:,.0f}",
-                    '신뢰도': '검증'
-                })
-            st.dataframe(pd.DataFrame(rows),use_container_width=True,hide_index=True,
-                column_config={
-                    '구분': st.column_config.TextColumn('신호',width='small'),
-                    '발생시간': st.column_config.TextColumn('발생시간',width='medium'),
-                    '가격': st.column_config.TextColumn('가격',width='medium'),
-                    '신뢰도': st.column_config.TextColumn('상태',width='small')
-                })
-        else:
-            st.info('최근 새 매매 신호가 없습니다.')
-        st.markdown("#### 알림 설정")
-        st.toggle('매수 신호 알림',value=True,key='buy_alert')
-        st.toggle('매도 신호 알림',value=True,key='sell_alert')
-        st.toggle('강력 신호만',value=False,key='strong_alert')
-        st.stop()
 
-    days={'1일':1,'1주':7,'1개월':30}[period]
-    view=eng[eng.time >= eng.time.max()-pd.Timedelta(days=days)].copy()
-    if len(view)<20: view=eng.tail(min(len(eng),120)).copy()
-    buys=view[view.sig=='매수']
-    sells=view[view.sig=='매도']
+def closed_candles(raw, now=None):
+    now = pd.Timestamp.now(tz='UTC') if now is None else pd.Timestamp(now)
+    return raw[raw.time.dt.tz_convert('UTC')+pd.Timedelta(days=1) <= now].reset_index(drop=True)
 
-    fig=make_subplots(rows=4,cols=1,shared_xaxes=True,row_heights=[.58,.12,.15,.15],vertical_spacing=.035)
-    fig.add_trace(go.Candlestick(x=view.time,open=view.open,high=view.high,low=view.low,close=view.close,name='Price'),row=1,col=1)
-    fig.add_trace(go.Scatter(x=view.time,y=view.EMA100,name='EMA100',line=dict(width=1.2)),row=1,col=1)
-    fig.add_trace(go.Scatter(x=view.time,y=view.EMA20,name='EMA20',line=dict(width=1.5)),row=1,col=1)
-    fig.add_trace(go.Scatter(x=view.time,y=view.EMA50,name='EMA50',line=dict(width=1.5)),row=1,col=1)
-    fig.add_trace(go.Scatter(x=buys.time,y=buys.low*.982,mode='text',text=['⬆<br>매수']*len(buys),textposition='middle center',textfont=dict(size=20,color='#1565C0',family='Arial Black'),name='매수',hovertemplate='매수<br>%{x}<extra></extra>'),row=1,col=1)
-    fig.add_trace(go.Scatter(x=sells.time,y=sells.high*1.018,mode='text',text=['매도<br>⬇']*len(sells),textposition='middle center',textfont=dict(size=20,color='#7B1FA2',family='Arial Black'),name='매도',hovertemplate='매도<br>%{x}<extra></extra>'),row=1,col=1)
-    fig.add_trace(go.Bar(x=view.time,y=view.volume,name='거래량',marker_color='#b8c6dc'),row=2,col=1)
-    fig.add_trace(go.Scatter(x=view.time,y=view.RSI,name='RSI',line=dict(width=1.5)),row=3,col=1)
-    fig.add_hline(y=70,line_dash='dot',row=3,col=1); fig.add_hline(y=30,line_dash='dot',row=3,col=1)
-    hist=view.MACD-view.MACDsig
-    fig.add_trace(go.Bar(x=view.time,y=hist,name='MACD Hist',marker_color='#b8c6dc'),row=4,col=1)
-    fig.add_trace(go.Scatter(x=view.time,y=view.MACD,name='MACD',line=dict(width=1.4)),row=4,col=1)
-    fig.add_trace(go.Scatter(x=view.time,y=view.MACDsig,name='Signal',line=dict(width=1.2)),row=4,col=1)
-    fig.update_layout(height=410,template='plotly_white',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='#ffffff',xaxis_rangeslider_visible=False,margin=dict(l=5,r=5,t=8,b=5),showlegend=False,hovermode='x unified')
-    fig.update_xaxes(showgrid=False,zeroline=False)
-    fig.update_yaxes(gridcolor='#edf1f6',zeroline=False,tickfont=dict(size=10))
-    fig.update_annotations(font=dict(size=9))
-    fig.update_xaxes(title_text=None); fig.update_yaxes(title_text=None)
-    st.plotly_chart(fig,use_container_width=True)
 
-    hi=view.high.tail(min(72,len(view))).max(); lo=view.low.tail(min(72,len(view))).min()
-    st.markdown(f"**주요 가격 구간** · 단기 저항 ₩{hi:,.0f} · 현재가 ₩{last.close:,.0f} · 단기 지지 ₩{lo:,.0f}")
-    st.markdown('**신호 판단 근거:** ' + ' · '.join(reasons))
-    st.caption(f"복합전략: EMA · MACD · RSI · ADX · DMI Cross · 거래량 · Bollinger · Stochastic · 보유기간 자동최적화 | 전체 {len(d)}캔들: {bt['n']}회 · 승률 {bt['win']:.1f}% · 누적 {bt['total']:+.2f}% · PF {bt['pf']:.2f}")
-    st.caption(f"후반 30% OOS 검증(최적화 미사용 구간): {oos['n']}회 · 승률 {oos['win']:.1f}% · 누적 {oos['total']:+.2f}% · PF {oos['pf']:.2f} | 수수료·슬리피지 반영")
-    st.caption(f'마지막 업데이트 캔들: {last.time:%Y-%m-%d %H:%M} KST · 본 앱의 신호는 투자 판단 보조용이며 수익을 보장하지 않습니다.')
-except Exception as e:
-    st.error('시세를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
-    st.caption(str(e))
+@st.cache_data(ttl=300, show_spinner=False)
+def daily_candles(market, count=1000):
+    rows = []; cursor = None
+    for _ in range((count+199)//200):
+        params = {'market': market, 'count': min(200, count-len(rows))}
+        if cursor:
+            params['to'] = cursor
+        for attempt in range(3):
+            response = requests.get('https://api.upbit.com/v1/candles/days', params=params, timeout=15)
+            if response.status_code != 429:
+                break
+            time.sleep(0.4*(attempt+1))
+        response.raise_for_status(); batch = response.json()
+        if not batch:
+            break
+        rows.extend(batch)
+        cursor = batch[-1]['candle_date_time_utc']+'Z'
+        if len(batch) < params['count']:
+            break
+        time.sleep(0.15)
+    if not rows:
+        raise ValueError('일봉 데이터가 없습니다.')
+    d = pd.DataFrame(rows).drop_duplicates('candle_date_time_utc')
+    d['time'] = pd.to_datetime(d.candle_date_time_utc, utc=True).dt.tz_convert('Asia/Seoul')
+    d = d.rename(columns={'opening_price':'open', 'high_price':'high', 'low_price':'low', 'trade_price':'close', 'candle_acc_trade_volume':'volume'})
+    return d[['time', 'open', 'high', 'low', 'close', 'volume']].sort_values('time').reset_index(drop=True)
+
+
+def chart(z, days):
+    view = z[z.time >= z.time.max()-pd.Timedelta(days=days)].copy()
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, row_heights=[.52,.24,.24], vertical_spacing=.045)
+    dates = view.time.dt.tz_localize(None)
+    fig.add_trace(go.Candlestick(x=dates, open=view.open, high=view.high, low=view.low, close=view.close, name='일봉', increasing_line_color='#de5252', decreasing_line_color='#3183c8'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=dates, y=view.RSI, name='RSI', line=dict(color='#7953be',width=2)),row=2,col=1)
+    for column, label, color in [('PDI','+DI','#089f80'),('MDI','−DI','#e87538'),('ADX','ADX','#8a95a6')]:
+        fig.add_trace(go.Scatter(x=dates,y=view[column],name=label,line=dict(color=color,width=2 if column != 'ADX' else 1)),row=3,col=1)
+    for level in [30,70]:
+        fig.add_hline(y=level,row=2,col=1,line_dash='dot',line_color='#aab4c2')
+    for _, r in view[view.sig.isin(['매수','매도'])].iterrows():
+        buy = r.sig == '매수'; offset = max(r.high-r.low, r.close*.03)
+        fig.add_annotation(x=r.time.tz_localize(None), y=r.low-offset*.35 if buy else r.high+offset*.35,
+            text=r.sig, showarrow=True, arrowhead=2, arrowwidth=3,
+            arrowcolor='#073da8' if buy else '#7c168e', font=dict(color='#073da8' if buy else '#7c168e',size=12),
+            ax=0, ay=42 if buy else -42,row=1,col=1)
+    for _, r in view[view.bull_div | view.bear_div].iterrows():
+        a,b = int(r.div_from),int(r.div_to); points=z.iloc[[a,b]]
+        color = '#073da8' if r.bull_div else '#7c168e'
+        if points.time.iloc[0] < view.time.iloc[0]:
+            continue
+        for column, panel in [('close',1),('RSI',2)]:
+            fig.add_trace(go.Scatter(x=points.time.dt.tz_localize(None),y=points[column],mode='lines+markers',line=dict(color=color,width=2,dash='dash'),showlegend=False,name='다이버전스 비교점'),row=panel,col=1)
+    fig.update_layout(height=700,template='plotly_white',xaxis_rangeslider_visible=False,hovermode='x unified',margin=dict(l=8,r=8,t=20,b=10),legend=dict(orientation='h',y=1.06))
+    fig.update_yaxes(range=[0,100],row=2,col=1)
+    fig.update_xaxes(tickformat='%y-%m-%d',showgrid=False)
+    return fig
+
+
+def main():
+    st.set_page_config(page_title='BTC · ETH 일봉 매매 신호',page_icon='₿',layout='wide')
+    st.markdown('<style>.block-container{max-width:1400px;padding-top:1.2rem}[data-testid="stMetric"]{background:#f4f7fb;padding:12px;border-radius:12px}[data-testid="stMetricValue"]{font-size:1.7rem}</style>',unsafe_allow_html=True)
+    st.title('₿ BTC · ETH 일봉 매매 신호')
+    st.caption(VERSION+' · 확정 일봉 기준 · 자동주문 없음')
+    a,b,c=st.columns([2,2,1])
+    coin=a.selectbox('코인',['Bitcoin (BTC)','Ethereum (ETH)'])
+    period=b.selectbox('차트 기간',['1개월','3개월','6개월','1년','2년'],index=3)
+    if c.button('시세 새로고침',use_container_width=True):
+        daily_candles.clear()
+        st.rerun()
+    with st.expander('매매 기준 및 설정',expanded=False):
+        s1,s2,s3=st.columns(3)
+        length=s1.number_input('DMI · RSI 기간',min_value=5,max_value=50,value=14)
+        lower=s2.number_input('RSI 과매도 기준',min_value=10,max_value=45,value=30)
+        upper=s3.number_input('RSI 과매수 기준',min_value=55,max_value=90,value=70)
+        pivot=st.number_input('고점·저점 확인 일봉 수(좌우 각각)',min_value=1,max_value=5,value=2)
+        st.markdown('**매수:** +DI의 −DI 상향교차(RSI 과매수 제외), RSI 과매도선 상향돌파, 또는 상승 다이버전스.\n\n**매도:** +DI의 −DI 하향교차(RSI 과매도 제외), RSI 과매수선 하향돌파, 또는 하락 다이버전스.\n\n**다이버전스:** 인접한 두 종가 저점은 낮아지나 해당 RSI는 높아지면 매수, 두 종가 고점은 높아지나 RSI는 낮아지면 매도. 비교점 간격은 최대 60일입니다. 신호는 뒤쪽 일봉으로 고점·저점이 확인된 날에 발생합니다.\n\n어느 한 조건이라도 충족하면 신호를 내며, 매수·매도 조건이 겹치면 관망합니다. ADX는 참고용입니다.')
+    market='KRW-BTC' if 'BTC' in coin else 'KRW-ETH'
+    try:
+        with st.spinner('일봉 데이터를 분석하고 있습니다…'):
+            raw=daily_candles(market)
+        closed=closed_candles(raw)
+        if len(closed) < 2*length+2*pivot+5:
+            st.warning('지표 계산에 필요한 확정 일봉이 부족합니다.'); return
+        z=signals(indicators(closed,int(length)),int(lower),int(upper),int(pivot))
+        last=z.iloc[-1]; current=raw.iloc[-1]
+        a,b,c,d=st.columns(4)
+        a.metric('최근 조회 가격',f'₩{current.close:,.0f}')
+        b.metric('확정 일봉 RSI',f'{last.RSI:.1f}')
+        c.metric('+DI / −DI',f'{last.PDI:.1f} / {last.MDI:.1f}')
+        d.metric('확정 일봉 신호',last.sig)
+        st.info(f"판단 일봉: {last.time:%Y-%m-%d} · 신호 확정: {last.confirmed_at:%Y-%m-%d %H:%M} KST\n\n근거: {last.reason or '새로운 매매 조건이 없습니다.'}")
+        st.caption(f'업비트 일봉은 한국시간 09:00에 마감합니다. 진행 중인 일봉은 신호와 백테스트에서 제외됩니다. 최근 조회 캔들 시작: {current.time:%Y-%m-%d %H:%M} KST · 가격은 5분 캐시 또는 새로고침으로 갱신됩니다.')
+        days={'1개월':30,'3개월':90,'6개월':180,'1년':365,'2년':730}[period]
+        st.plotly_chart(chart(z,days),use_container_width=True)
+        st.caption('파란 화살표: 매수 · 보라 화살표: 매도 · 점선: 다이버전스 비교점. 화살표는 신호를 확인한 일봉에 표시됩니다.')
+        tab1,tab2=st.tabs(['매매 신호 이력','백테스트'])
+        with tab1:
+            events=z[z.sig.ne('관망')].sort_values('confirmed_at',ascending=False).head(100)
+            if events.empty:
+                st.info('매매 신호가 없습니다.')
+            else:
+                table=events[['confirmed_at','sig','close','RSI','PDI','MDI','reason']].copy()
+                table['confirmed_at']=table.confirmed_at.dt.strftime('%Y-%m-%d %H:%M')
+                table.columns=['신호 확정시각(KST)','신호','판단 종가(원)','RSI','+DI','−DI','판단 근거']
+                st.dataframe(table,use_container_width=True,hide_index=True)
+                st.download_button('신호 이력 CSV 다운로드',table.to_csv(index=False).encode('utf-8-sig'),file_name=f'{market}_daily_signals.csv',mime='text/csv')
+                st.caption('이력은 보유 여부와 관계없이 발생한 지표 신호입니다. 매도는 보유 코인의 청산 신호입니다.')
+        with tab2:
+            st.caption('설정한 차트 기간의 시작은 현금 100%로 가정합니다. 지표는 이전 데이터로 계산하고, 확정 신호 다음 일봉 시가에 체결합니다. 최소 보유 24시간 · 거래당 수수료 0.05% · 슬리피지 0.03%.')
+            btdata=z[z.time >= z.time.max()-pd.Timedelta(days=days)].reset_index(drop=True)
+            trades,equity,dd,holding=backtest(btdata)
+            total=(equity.iloc[-1]-1)*100
+            buyhold=(btdata.close.iloc[-1]*(1-.0003)*(1-.0005)/(btdata.open.iloc[0]*(1+.0003)*(1+.0005))-1)*100
+            a,b,c,d=st.columns(4)
+            a.metric('전략 수익률',f'{total:+.2f}%')
+            b.metric('단순 보유 수익률',f'{buyhold:+.2f}%')
+            c.metric('최대 낙폭',f'{dd:.2f}%')
+            d.metric('완료 거래',f'{len(trades)}회')
+            st.caption('현재 모의 포지션: '+('보유 중(평가손익 및 예상 청산비용 포함)' if holding else '현금'))
+            st.line_chart(pd.DataFrame({'전략 자산(초기=100)':equity.values*100},index=btdata.time.dt.tz_localize(None)))
+            if not trades.empty:
+                st.dataframe(trades,use_container_width=True,hide_index=True)
+            else:
+                st.info('선택한 기간에 완료된 매매가 없습니다.')
+            st.caption('과거 데이터의 모의 결과이며 미래 수익을 보장하지 않습니다.')
+    except (requests.RequestException,ValueError,KeyError) as exc:
+        st.error('일봉 데이터를 불러오지 못했습니다. 시세 새로고침을 눌러 다시 시도해 주세요.')
+        st.caption(str(exc))
+
+
+if __name__ == '__main__':
+    main()
