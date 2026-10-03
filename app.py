@@ -5,7 +5,7 @@ import requests
 import streamlit as st
 import plotly.graph_objects as go
 
-VERSION = '일봉 매매 신호 / v3'
+VERSION = '일봉 매매 신호 · 4시간 모니터링 / v4'
 
 
 def wilder(series, period):
@@ -189,6 +189,7 @@ def chart(z, days):
     return fig
 
 
+@st.fragment(run_every="4h")
 def main():
     st.set_page_config(page_title='BTC · ETH 일봉 매매 신호',page_icon='₿',layout='wide')
     st.markdown('<style>.block-container{max-width:1400px;padding-top:1.2rem}[data-testid="stMetric"]{background:#f4f7fb;padding:12px;border-radius:12px}[data-testid="stMetricValue"]{font-size:1.7rem}</style>',unsafe_allow_html=True)
@@ -216,6 +217,15 @@ def main():
             st.warning('지표 계산에 필요한 확정 일봉이 부족합니다.'); return
         z=signals(indicators(closed),int(window),float(min_price),float(min_rsi))
         last=z.iloc[-1]; current=raw.iloc[-1]
+        checked_at=pd.Timestamp.now(tz='Asia/Seoul')
+        st.caption(f'4시간 자동 모니터링 · 이번 확인: {checked_at:%Y-%m-%d %H:%M} KST · 다음 확인: {checked_at+pd.Timedelta(hours=4):%m-%d %H:%M} KST')
+        alert_key=f'monitor_check_{market}'
+        previous_check=st.session_state.get(alert_key,checked_at)
+        fresh=z[(z.confirmed_at>previous_check)&z.sig.isin(['매수','매도'])]
+        for _,event in fresh.iterrows():
+            st.toast(f'{market} {event.sig} · {event.confirmed_at:%m/%d %H:%M} · {event.reason}',icon='🔔')
+        st.session_state[alert_key]=checked_at
+        st.caption('앱이 열려 있는 동안 4시간마다 재확인합니다. 앱을 닫아둔 경우의 알림은 ChatGPT 예약 모니터링으로 전달됩니다.')
         a,b,c=st.columns(3)
         a.metric('최근 조회 가격',f'₩{current.close:,.0f}')
         b.metric('확정 일봉 신호',last.sig)
