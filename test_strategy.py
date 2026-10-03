@@ -11,6 +11,41 @@ def frame(prices):
 
 
 class StrategyTests(unittest.TestCase):
+    def test_active_dmi_warning_once_reset_and_no_buy_upgrade(self):
+        x=frame([100]*12)
+        x['PDI']=np.array([-2,2,3,-1,-3,-4,-5,2,3,-1,-4,-5])+10
+        x['MDI']=10.
+        x['ADX']=[10,10,11,18,21,23,24,24,26,26,28,29]
+        z=app.active_signals(x,'KRW-BTC')
+        self.assertEqual(z[z.alert_event].index.tolist(),[1,3,4,7,9,10])
+        self.assertEqual(z[z.upgrade_warning].index.tolist(),[4,10])
+        self.assertEqual(z.sig.iloc[4],'관망')
+        self.assertEqual(z.signal_state.iloc[4],'매도 이후')
+        self.assertFalse(z.alert_event.iloc[8])
+        self.assertEqual(z[z.sig.isin(['매수','매도'])].sig.tolist(),['매수','매도','매수','매도'])
+        pd.testing.assert_frame_equal(z,app.active_signals(x,'KRW-ETH'))
+        for n in [4,5,8,11]:
+            pd.testing.assert_frame_equal(z.iloc[:n],app.active_signals(x.iloc[:n],'KRW-BTC'))
+        # Strong on the original sell means no later duplicate warning.
+        x.loc[3,'ADX']=20
+        out=app.active_signals(x,'KRW-BTC')
+        self.assertEqual(out.signal_label.iloc[3],'강력매도')
+        self.assertFalse(out.upgrade_warning.iloc[4:7].any())
+
+    def test_active_stop_and_strength_do_not_change_trade_events(self):
+        x=frame([100,100,100,85,80,79,90])
+        x['PDI']=[9,12,13,14,8,7,12];x['MDI']=10.
+        x['ADX']=[10,11,12,18,21,23,24]
+        z=app.active_signals(x,'KRW-ETH')
+        self.assertEqual(z.signal_label.iloc[3],'손절 매도')
+        self.assertTrue(z.stop_trigger.iloc[3])
+        self.assertTrue(z.upgrade_warning.iloc[4])
+        base=app.dmi_only_signals(x,stop_pct=10)
+        pd.testing.assert_series_equal(z.sig,base.sig)
+        for key in ['RSI','SlowK','SlowD','MACDhist']:
+            x[key]=-999.
+        pd.testing.assert_series_equal(z.sig,app.active_signals(x,'KRW-ETH').sig)
+
     def test_dmi_only_crosses_and_no_stop_or_other_filter(self):
         x=frame([100,100,100,100,50,60,70])
         x['PDI']=[np.nan,10,12,13,14,9,12]
@@ -155,12 +190,10 @@ class StrategyTests(unittest.TestCase):
         # Low below stop alone does not trigger; only confirmed close does.
         z.loc[1,'close']=95
         self.assertFalse(app.sequence_signals(z,stop_pct=10).stop_trigger.iloc[1])
-        with patch('app.signals',return_value=z) as mock:
-            app.active_signals(z,'KRW-BTC')
-            self.assertEqual(mock.call_args.kwargs['stop_pct'],10.0)
-        with patch('app.research_signals',return_value=z) as mock:
-            app.active_signals(z,'KRW-ETH')
-            self.assertEqual(mock.call_args.args[2],{'macd':'positive','dmi_gap':2})
+        x=app.indicators(frame([100]*60))
+        for market in ['KRW-BTC','KRW-ETH']:
+            out=app.active_signals(x,market)
+            pd.testing.assert_series_equal(out.sig,app.dmi_only_signals(x,stop_pct=10).sig)
 
     def test_strength_labels_preserve_events_and_stop_priority(self):
         z=frame([100,110,115,90,85])
