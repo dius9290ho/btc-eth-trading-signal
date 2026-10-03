@@ -233,9 +233,10 @@ class StrategyTests(unittest.TestCase):
         with patch('requests.get',return_value=Response()):
             at=AppTest.from_file('app.py',default_timeout=30).run()
             self.assertEqual(len(at.exception),0);self.assertEqual(len(at.error),0)
-            for coin in ['Bitcoin (BTC)','Ethereum (ETH)']:
-                for period in ['1개월','3개월','6개월','1년','2년']:
-                    at.selectbox[0].set_value(coin);at.selectbox[1].set_value(period);at.run()
+            self.assertEqual(at.radio[0].value,'비트코인 (BTC)')
+            for coin in ['비트코인 (BTC)','이더리움 (ETH)']:
+                for period in ['1개월','3개월','6개월','1년','2년','3년']:
+                    at.radio[0].set_value(coin);at.selectbox[0].set_value(period);at.run()
                     self.assertEqual(len(at.exception),0);self.assertEqual(len(at.error),0)
         app.st.cache_data.clear()
         with patch('requests.get',side_effect=app.requests.ConnectionError('test')):
