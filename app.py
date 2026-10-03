@@ -5,7 +5,7 @@ import requests
 import streamlit as st
 import plotly.graph_objects as go
 
-VERSION = '일봉 매매 신호 · 검증 최적화 · EMA 추가 검증 · 일봉 종가 10% 손절 · 4시간 모니터링 / v10'
+VERSION = '일봉 매매 신호 · 검증 최적화 · EMA 추가 검증 · 일봉 종가 10% 손절 · 4시간 모니터링 / v11'
 
 
 OPTIMIZATION_REPORT = {'KRW-BTC': {'params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'train': {'return': 59.504, 'dd': -9.5508, 'trades': 12}, 'validation': {'return': -5.4235, 'dd': -13.1394, 'trades': 6}, 'holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'baseline_holdout': {'return': 0.6368, 'dd': -16.0627, 'trades': 7}, 'full': {'return': 91.7306, 'dd': -13.4732, 'trades': 24}, 'baseline_full': {'return': -3.957, 'dd': -25.7951, 'trades': 27}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(-6.1246), 'dd': np.float64(-14.1909)}, 'buyhold_holdout': np.float64(-10.6101), 'applied_params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'applied_holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'decision': 'BTC: 비교 후 적용'}, 'KRW-ETH': {'params': {'window': 21, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'stoch_direction', 'min_adx': 15, 'exit_mode': 'confirmed'}, 'train': {'return': 80.6914, 'dd': -27.0236, 'trades': 8}, 'validation': {'return': 21.3897, 'dd': -24.613, 'trades': 6}, 'holdout': {'return': -7.5621, 'dd': -24.1031, 'trades': 5}, 'baseline_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'full': {'return': 104.1785, 'dd': -36.407, 'trades': 20}, 'baseline_full': {'return': 18.7774, 'dd': -42.651, 'trades': 24}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(6.6622), 'dd': np.float64(-29.9458)}, 'buyhold_holdout': np.float64(-13.2666), 'applied_params': {'window': 14, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'confirmed'}, 'applied_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'decision': 'ETH: 별도 평가에서 악화되어 기존 조건 유지'}}
@@ -15,7 +15,12 @@ for _market, _result in EMA_REPORT.items():
     OPTIMIZATION_REPORT[_market]['applied_params'] = _result['applied_params']
     OPTIMIZATION_REPORT[_market]['applied_holdout'] = {'return': _result['applied']['ret'], 'dd': _result['applied']['dd'], 'trades': _result['applied']['trades']}
 
+EXTENDED_REPORT = {'KRW-BTC': {'candidate': {'profile': {'volume': 1.0, 'macd': 'positive'}, 'train': {'return': 77.6946, 'dd': -7.8245, 'trades': 7}, 'validation': {'return': -0.6561, 'dd': -8.4932, 'trades': 4}, 'recent': {'return': 3.3522, 'dd': -10.9594, 'trades': 4}, 'year': {'return': -0.0169, 'dd': -13.1452, 'trades': 5}, 'score': 25.527771749999996}, 'baseline': {'profile': {}, 'train': {'return': 59.504, 'dd': -9.5508, 'trades': 12}, 'validation': {'return': -5.4235, 'dd': -13.1394, 'trades': 6}, 'recent': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'year': {'return': 16.7598, 'dd': -10.5429, 'trades': 7}, 'score': 15.518616499999998}, 'applied': {'profile': {}, 'train': {'return': 59.504, 'dd': -9.5508, 'trades': 12}, 'validation': {'return': -5.4235, 'dd': -13.1394, 'trades': 6}, 'recent': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'year': {'return': 16.7598, 'dd': -10.5429, 'trades': 7}, 'score': 15.518616499999998}, 'decision': '개선 기준 미충족 또는 기존 우수 · 기존 유지', 'count': 84, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'recent_start': '2026-01-26 09:00:00+09:00', 'recent_end': '2026-10-02 09:00:00+09:00', 'year_start': '2025-10-03 09:00:00+09:00', 'year_end': '2026-10-02 09:00:00+09:00', 'quarters': [{'start': '2025-10-03 09:00:00+09:00', 'end': '2025-12-31 09:00:00+09:00', 'baseline': {'return': -7.1718, 'dd': -8.6809, 'trades': 1}, 'applied': {'return': -7.1718, 'dd': -8.6809, 'trades': 1}}, {'start': '2026-01-01 09:00:00+09:00', 'end': '2026-03-31 09:00:00+09:00', 'baseline': {'return': 2.5151, 'dd': -7.6095, 'trades': 2}, 'applied': {'return': 2.5151, 'dd': -7.6095, 'trades': 2}}, {'start': '2026-04-01 09:00:00+09:00', 'end': '2026-06-29 09:00:00+09:00', 'baseline': {'return': 8.9628, 'dd': -4.2482, 'trades': 1}, 'applied': {'return': 8.9628, 'dd': -4.2482, 'trades': 1}}, {'start': '2026-06-30 09:00:00+09:00', 'end': '2026-10-02 09:00:00+09:00', 'baseline': {'return': 12.2721, 'dd': -7.2205, 'trades': 2}, 'applied': {'return': 12.2721, 'dd': -7.2205, 'trades': 2}}], 'baseline_double_cost': {'return': 15.4594, 'dd': -10.9712, 'trades': 7}, 'applied_double_cost': {'return': 15.4594, 'dd': -10.9712, 'trades': 7}}, 'KRW-ETH': {'candidate': {'profile': {'macd': 'positive', 'trail': 5.0}, 'train': {'return': 22.1743, 'dd': -8.3386, 'trades': 6}, 'validation': {'return': 31.9211, 'dd': -20.5991, 'trades': 6}, 'recent': {'return': 5.333, 'dd': -5.4372, 'trades': 2}, 'year': {'return': 1.0263, 'dd': -6.7355, 'trades': 4}, 'score': 26.06353125}, 'baseline': {'profile': {}, 'train': {'return': 22.2409, 'dd': -8.8651, 'trades': 5}, 'validation': {'return': 9.5783, 'dd': -28.0445, 'trades': 8}, 'recent': {'return': 8.33, 'dd': -5.4372, 'trades': 2}, 'year': {'return': 1.8292, 'dd': -8.5951, 'trades': 5}, 'score': 10.810453500000001}, 'applied': {'profile': {'macd': 'positive'}, 'train': {'return': 22.2409, 'dd': -8.8651, 'trades': 5}, 'validation': {'return': 21.983, 'dd': -26.5807, 'trades': 6}, 'recent': {'return': 8.33, 'dd': -5.4372, 'trades': 2}, 'year': {'return': 3.9008, 'dd': -6.7355, 'trades': 4}, 'score': 19.016229}, 'decision': '추가 조건 적용', 'count': 84, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'recent_start': '2026-01-26 09:00:00+09:00', 'recent_end': '2026-10-02 09:00:00+09:00', 'year_start': '2025-10-03 09:00:00+09:00', 'year_end': '2026-10-02 09:00:00+09:00', 'quarters': [{'start': '2025-10-03 09:00:00+09:00', 'end': '2025-12-31 09:00:00+09:00', 'baseline': {'return': -4.6468, 'dd': -4.6468, 'trades': 2}, 'applied': {'return': -2.7069, 'dd': -2.7069, 'trades': 1}}, {'start': '2026-01-01 09:00:00+09:00', 'end': '2026-03-31 09:00:00+09:00', 'baseline': {'return': -1.4202, 'dd': -3.8165, 'trades': 1}, 'applied': {'return': -1.4202, 'dd': -3.8165, 'trades': 1}}, {'start': '2026-04-01 09:00:00+09:00', 'end': '2026-06-29 09:00:00+09:00', 'baseline': {'return': 3.6951, 'dd': -5.4372, 'trades': 1}, 'applied': {'return': 3.6951, 'dd': -5.4372, 'trades': 1}}, {'start': '2026-06-30 09:00:00+09:00', 'end': '2026-10-02 09:00:00+09:00', 'baseline': {'return': 4.4698, 'dd': -3.9897, 'trades': 1}, 'applied': {'return': 4.4698, 'dd': -3.9897, 'trades': 1}}], 'baseline_double_cost': {'return': 0.8563, 'dd': -9.1782, 'trades': 5}, 'applied_double_cost': {'return': 3.0729, 'dd': -7.1821, 'trades': 4}}}
+
 def active_signals(x, market):
+    profile = EXTENDED_REPORT[market]["applied"]["profile"]
+    if profile:
+        return research_signals(x, market, profile)
     return signals(x, stop_pct=10.0, **OPTIMIZATION_REPORT[market]["applied_params"])
 
 
@@ -52,6 +57,15 @@ def indicators(raw, period=14, stoch_period=30, smooth_k=10, smooth_d=10):
     total = x.PDI+x.MDI
     dx = (100*(x.PDI-x.MDI).abs()/total.replace(0, np.nan)).where(total != 0, 0)
     x['ADX'] = wilder(dx, period)
+    x['ATR'] = atr
+    x['MACD'] = x.close.ewm(span=12,adjust=False,min_periods=12).mean()-x.close.ewm(span=26,adjust=False,min_periods=26).mean()
+    x['MACDsignal'] = x.MACD.ewm(span=9,adjust=False,min_periods=9).mean()
+    x['MACDhist'] = x.MACD-x.MACDsignal
+    x['VolumeRatio'] = x.volume/x.volume.shift().rolling(20,min_periods=20).mean().replace(0,np.nan)
+    x['BBmid'] = x.close.rolling(20,min_periods=20).mean()
+    bbdev=x.close.rolling(20,min_periods=20).std(ddof=0)
+    x['BBlower']=x.BBmid-2*bbdev
+    x['BBupper']=x.BBmid+2*bbdev
     x['RSIsignal'] = x.RSI.rolling(9, min_periods=9).mean()
     lowest = x.low.rolling(stoch_period, min_periods=stoch_period).min()
     highest = x.high.rolling(stoch_period, min_periods=stoch_period).max()
@@ -130,10 +144,10 @@ def signals(x, window=14, min_price=1.0, min_rsi=3.0, div_confirm='none', min_ad
     return label_strength(z)
 
 
-def sequence_signals(z, stop_pct=0.0, slip=0.0003):
+def sequence_signals(z, stop_pct=0.0, slip=0.0003, atr_mult=0.0, trailing_pct=0.0):
     """Alternate raw events; daily-close stop anchored to next-open simulated entry."""
     z = z.reset_index(drop=True).copy()
-    last_signal = None; entry_price = None
+    last_signal = None; entry_price = None; peak_close = None; trail_line = None
     states = []; emitted = []; anchors = []; stops = []; triggers = []
     for i in range(len(z)):
         row = z.iloc[i]
@@ -141,13 +155,23 @@ def sequence_signals(z, stop_pct=0.0, slip=0.0003):
         if i > 0:
             if emitted[-1] == '매수':
                 entry_price = float(row.open)*(1+slip)
+                peak_close = entry_price; trail_line = None
             elif emitted[-1] == '매도':
-                entry_price = None
+                entry_price = None; peak_close = None; trail_line = None
         stop_line = entry_price*(1-stop_pct/100) if entry_price is not None and stop_pct > 0 else np.nan
+        trail_hit = False
+        if entry_price is not None and (atr_mult > 0 or trailing_pct > 0):
+            peak_close = max(peak_close, float(row.close))
+            candidate_line = peak_close*(1-trailing_pct/100) if trailing_pct > 0 else (peak_close-atr_mult*float(row.ATR) if pd.notna(row.ATR) else np.nan)
+            if pd.notna(candidate_line):
+                trail_line = max(trail_line,candidate_line) if trail_line is not None else candidate_line
+            trail_hit = trail_line is not None and float(row.close) <= trail_line
         hit = entry_price is not None and stop_pct > 0 and float(row.close) <= stop_line
-        signal = '매도' if hit else row.candidate_sig
+        signal = '매도' if hit or trail_hit else row.candidate_sig
         if hit:
             z.loc[i, 'reason'] = f'일봉 종가 {stop_pct:g}% 손절 · 모의 매수가 ₩{entry_price:,.0f} · 손절 기준 ₩{stop_line:,.0f}'
+        if trail_hit and not hit:
+            z.loc[i, 'reason'] = f'일봉 종가 추적청산 · '+(f'ATR(14) × {atr_mult:g}' if atr_mult else f'고점 대비 {trailing_pct:g}%')+f' · 보호선 ₩{trail_line:,.0f}'
         if signal in ('매수', '매도'):
             if signal == last_signal:
                 signal = '관망'
@@ -158,10 +182,38 @@ def sequence_signals(z, stop_pct=0.0, slip=0.0003):
         emitted.append(signal)
         states.append('매수 이후' if last_signal == '매수' else '매도 이후' if last_signal == '매도' else '신호 대기')
         anchors.append(entry_price if entry_price is not None else np.nan)
-        stops.append(stop_line); triggers.append(bool(hit and signal == '매도'))
+        stops.append(max(stop_line,trail_line) if pd.notna(stop_line) and trail_line is not None else trail_line if trail_line is not None else stop_line); triggers.append(bool(hit and signal == '매도'))
     z['signal_state'] = states
     z['sim_entry_price'] = anchors; z['stop_price'] = stops; z['stop_trigger'] = triggers
     return z
+
+
+def research_signals(x, market, profile=None, base_frame=None):
+    """Add tested entry confirmation / profit protection to the frozen v10 base."""
+    profile = profile or {}
+    z = (base_frame if base_frame is not None else signals(x,**OPTIMIZATION_REPORT[market]['applied_params'])).copy()
+    # Rebuild from unsuppressed indicator reasons before applying alternation and risk.
+    buy=z.buy_reason.ne(''); sell=z.sell_reason.ne('')
+    gate=pd.Series(True,index=z.index)
+    volume=profile.get('volume',0)
+    macd=profile.get('macd','none')
+    bb=profile.get('bb','none')
+    if volume:gate &= z.VolumeRatio >= volume
+    if macd=='positive':gate &= z.MACDhist > 0
+    elif macd=='rising':gate &= z.MACDhist.diff() > 0
+    if bb=='mid':gate &= z.close > z.BBmid
+    elif bb=='rebound':gate &= (z.close > z.BBlower) & (z.close.diff() > 0)
+    buy &= gate
+    z['candidate_sig']=np.select([buy & sell,buy,sell],['관망(충돌)','매수','매도'],default='관망')
+    z['sig']=z.candidate_sig.copy()
+    z['reason']=np.where(buy & sell,z.buy_reason+' / '+z.sell_reason,np.where(buy,z.buy_reason,np.where(sell,z.sell_reason,'')))
+    checks=[]
+    if volume:checks.append(f'거래량 ≥ 직전20일 평균 × {volume:g}')
+    if macd!='none':checks.append('MACD 히스토그램 '+('양수' if macd=='positive' else '상승'))
+    if bb!='none':checks.append('볼린저 '+('중심선 상회' if bb=='mid' else '하단 위 종가 상승'))
+    if checks:z.loc[buy,'reason']=z.loc[buy,'reason']+' · '+' / '.join(checks)
+    z=sequence_signals(z,stop_pct=10,atr_mult=profile.get('atr',0),trailing_pct=profile.get('trail',0))
+    return label_strength(z)
 
 
 def label_strength(z):
@@ -325,7 +377,7 @@ def main():
     }
     </style>""",unsafe_allow_html=True)
     st.title('BTC · ETH 일봉 매매')
-    st.caption('확정 일봉 · 4시간 확인 · 종가 10% 손절 · 강력 신호 · 추가 매도 경고 · v10')
+    st.caption('확정 일봉 · 4시간 확인 · 종가 10% 손절 · 강력 신호 · MACD 추가 비교 · v11')
     a,b,c=st.columns([2,2,1])
     coin=a.selectbox('코인',['Bitcoin (BTC)','Ethereum (ETH)'])
     period=b.selectbox('차트 기간',['1개월','3개월','6개월','1년','2년'],index=1)
@@ -342,6 +394,7 @@ def main():
             st.caption(f"추가 지표: EMA({selected['ema_period']}) · 종가가 EMA 위일 때만 기존 매수 허용 · 종가 하향돌파 추가 매도")
         else:
             st.caption('EMA 추가 실험에서 BTC 수익률이 감소하여 기본 조건에서는 적용하지 않습니다. 수동 조건에서 사용할 수 있습니다.')
+        st.caption('추가 비교 결과: ETH는 MACD(12,26,9) 히스토그램이 양수일 때만 기존 매수 신호를 허용합니다. BTC는 기존 유지. 거래량·볼린저밴드·ATR·추적청산도 비교했으나 기본 조건에 추가하지 않았습니다. 수동 조건에는 MACD 필터를 적용하지 않습니다.')
         st.caption('강력매수·강력매도: 기존 신호에 RSI 방향, DMI 방향(ADX≥20), Slow %K/%D 방향과 %K 추세가 모두 일치하고 반대 다이버전스가 없을 때 표시합니다. RSI 방향은 다이버전스 또는 RSI가 신호선 위에서 상승/아래에서 하락하는 경우입니다. 강력은 조건 일치도를 뜻하며 적중률을 보장하지 않습니다. 손절은 별도 표시합니다.')
         st.caption('손절: 확정 일봉 종가 ≤ 모의 매수가 × 90%이면 매도. 기존 매도 조건은 유지하며 손절을 우선합니다. 모의 매수가는 매수 신호 다음 일봉 시가에 슬리피지 0.03%를 반영한 가격으로, 실제 계좌 매수가와 다릅니다.')
         st.caption('추가 경고: 일반 매도 이후 RSI·DMI·스토캐스틱이 강력매도 조건을 처음 충족하면 다음 매수 전까지 한 번 알립니다. 최초 매도가 강력매도이면 재경고하지 않습니다. 이미 매도한 경우 추가 거래가 필요하지 않습니다. 매수→강력매수 추가 알림은 차단합니다.')
@@ -395,18 +448,23 @@ def main():
                 st.download_button('신호 이력 CSV 다운로드',table.to_csv(index=False).encode('utf-8-sig'),file_name=f'{market}_daily_signals.csv',mime='text/csv')
                 st.caption('매매 신호는 매수·매도 순서로 번갈아 표시됩니다. 일반 매도 이후 하락 조건이 강해지면 추가 경고를 한 번 표시합니다. 추가 경고는 모의 거래나 보유 상태를 바꾸지 않습니다.')
         with tab2:
-            report=OPTIMIZATION_REPORT[market]
-            ema=EMA_REPORT[market]
-            st.markdown('**EMA 1개 추가: 과거 비교 결과**')
-            st.caption(f'{report["holdout_start"][:10]} ~ {report["holdout_end"][:10]} · 수수료·슬리피지 포함. 기존 최적화에서도 사용한 데이터로, 완전히 새로운 검증 구간은 아닙니다.')
+            report=EXTENDED_REPORT[market]
+            st.markdown('**추가 지표 168개 조합: 최근 1년 모의 비교**')
+            st.caption(f'{report["year_start"][:10]} ~ {report["year_end"][:10]} · 코인별 84개 조건 · 거래량, MACD, 볼린저밴드, ATR, 고점 대비 추적청산 비교')
             comparison=pd.DataFrame([
-                {'조건':'직전 적용(v5)','수익률(%)':ema['previous']['ret'],'최대 낙폭(%)':ema['previous']['dd']},
-                {'조건':f'EMA({ema["params"]["ema_period"]}) 실험','수익률(%)':ema['recent']['ret'],'최대 낙폭(%)':ema['recent']['dd']},
-                {'조건':'실제 적용','수익률(%)':report['applied_holdout']['return'],'최대 낙폭(%)':report['applied_holdout']['dd']},
-                {'조건':'단순 보유','수익률(%)':report['buyhold_holdout'],'최대 낙폭(%)':np.nan}])
+                {'조건':name,'수익률(%)':row['year']['return'],'최대 낙폭(%)':row['year']['dd'],'완료 거래':row['year']['trades'],'1천만원 최종자산(원)':round(10_000_000*(1+row['year']['return']/100))}
+                for name,row in [('수정 전(v10)',report['baseline']),('학습·중간구간 최고 점수 후보',report['candidate']),('실제 적용(v11)',report['applied'])]])
             st.dataframe(comparison,use_container_width=True,hide_index=True)
-            st.caption(ema['decision']+f" · EMA 조건 {ema['candidates']}개 비교 · 비교 기간 완료 거래 {ema['applied']['trades']}회")
-            st.caption('조건은 앞선 학습·검증 기간으로 선정하고, 이후 과거 구간 비교를 채택 판단에도 사용했습니다. 표본이 적고 데이터가 재사용되어 과적합 가능성이 있습니다. 아래 선택 기간에도 선정 데이터가 포함될 수 있습니다.')
+            st.caption(report['decision']+' · '+('MACD(12,26,9) 양수 매수 필터' if report['applied']['profile'] else '기존 조건 유지'))
+            st.caption('앞선 기간·중간 기간·최근 기간 및 1년 성과를 모두 조건 선택에 사용했습니다. 최근 1년은 다른 구간과 겹치며 기존 연구 데이터도 재사용했습니다. 독립적인 미래 검증이 아니고, 모든 가능한 지표 조합을 탐색한 결과도 아닙니다. 과적합 가능성이 있습니다.')
+            with st.expander('기간별 성과와 거래비용 민감도',expanded=False):
+                rows=[]
+                for label,key in [('앞선 기간','train'),('중간 기간','validation'),('최근 기간','recent'),('최근 1년','year')]:
+                    rows.append({'기간':label,'수정 전 수익률(%)':report['baseline'][key]['return'],'적용 수익률(%)':report['applied'][key]['return'],'적용 최대 낙폭(%)':report['applied'][key]['dd']})
+                st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
+                st.caption(f"거래비용 두 배(수수료 0.10%, 슬리피지 0.06%, 각 편도): 최근 1년 수정 전 {report['baseline_double_cost']['return']:+.2f}% → 적용 {report['applied_double_cost']['return']:+.2f}%")
+                st.caption('아래 네 구간은 각각 현금 100%로 시작한 별도 모의 계산으로 수익률을 단순 합산할 수 없습니다.')
+                st.dataframe(pd.DataFrame([{'기간':q['start'][:10]+' ~ '+q['end'][:10],'수정 전(%)':q['baseline']['return'],'적용(%)':q['applied']['return']} for q in report['quarters']]),hide_index=True,use_container_width=True)
             st.caption('설정한 차트 기간의 시작은 현금 100%로 가정합니다. 지표는 이전 데이터로 계산하고, 확정 신호 다음 일봉 시가에 체결합니다. 최소 보유 24시간 · 거래당 수수료 0.05% · 슬리피지 0.03%.')
             btdata=z[z.time >= z.time.max()-pd.Timedelta(days=days)].reset_index(drop=True)
             trades,equity,dd,holding=backtest(btdata)
