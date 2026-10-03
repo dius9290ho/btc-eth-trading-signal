@@ -5,7 +5,7 @@ import requests
 import streamlit as st
 import plotly.graph_objects as go
 
-VERSION = '일봉 매매 신호 · 검증 최적화 · EMA 추가 검증 · 4시간 모니터링 / v6'
+VERSION = '일봉 매매 신호 · 검증 최적화 · EMA 추가 검증 · 일봉 종가 10% 손절 · 4시간 모니터링 / v7'
 
 
 OPTIMIZATION_REPORT = {'KRW-BTC': {'params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'train': {'return': 59.504, 'dd': -9.5508, 'trades': 12}, 'validation': {'return': -5.4235, 'dd': -13.1394, 'trades': 6}, 'holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'baseline_holdout': {'return': 0.6368, 'dd': -16.0627, 'trades': 7}, 'full': {'return': 91.7306, 'dd': -13.4732, 'trades': 24}, 'baseline_full': {'return': -3.957, 'dd': -25.7951, 'trades': 27}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(-6.1246), 'dd': np.float64(-14.1909)}, 'buyhold_holdout': np.float64(-10.6101), 'applied_params': {'window': 30, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'dmi_early'}, 'applied_holdout': {'return': 30.0189, 'dd': -8.3138, 'trades': 5}, 'decision': 'BTC: 비교 후 적용'}, 'KRW-ETH': {'params': {'window': 21, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'stoch_direction', 'min_adx': 15, 'exit_mode': 'confirmed'}, 'train': {'return': 80.6914, 'dd': -27.0236, 'trades': 8}, 'validation': {'return': 21.3897, 'dd': -24.613, 'trades': 6}, 'holdout': {'return': -7.5621, 'dd': -24.1031, 'trades': 5}, 'baseline_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'full': {'return': 104.1785, 'dd': -36.407, 'trades': 20}, 'baseline_full': {'return': 18.7774, 'dd': -42.651, 'trades': 24}, 'candidates': 32, 'train_start': '2024-03-08 09:00:00+09:00', 'train_end': '2025-05-20 09:00:00+09:00', 'validation_start': '2025-05-21 09:00:00+09:00', 'validation_end': '2026-01-25 09:00:00+09:00', 'holdout_start': '2026-01-26 09:00:00+09:00', 'holdout_end': '2026-10-02 09:00:00+09:00', 'fit_end': '2026-01-25 09:00:00+09:00', 'baseline_validation': {'return': np.float64(6.6622), 'dd': np.float64(-29.9458)}, 'buyhold_holdout': np.float64(-13.2666), 'applied_params': {'window': 14, 'min_price': 1.0, 'min_rsi': 3.0, 'div_confirm': 'none', 'min_adx': 0, 'exit_mode': 'confirmed'}, 'applied_holdout': {'return': -0.5176, 'dd': -16.5655, 'trades': 6}, 'decision': 'ETH: 별도 평가에서 악화되어 기존 조건 유지'}}
@@ -16,7 +16,7 @@ for _market, _result in EMA_REPORT.items():
     OPTIMIZATION_REPORT[_market]['applied_holdout'] = {'return': _result['applied']['ret'], 'dd': _result['applied']['dd'], 'trades': _result['applied']['trades']}
 
 def active_signals(x, market):
-    return signals(x, **OPTIMIZATION_REPORT[market]["applied_params"])
+    return signals(x, stop_pct=10.0, **OPTIMIZATION_REPORT[market]["applied_params"])
 
 
 def wilder(series, period):
@@ -62,7 +62,7 @@ def indicators(raw, period=14, stoch_period=30, smooth_k=10, smooth_d=10):
     return x
 
 
-def signals(x, window=14, min_price=1.0, min_rsi=3.0, div_confirm='none', min_adx=0, exit_mode='confirmed', ema_period=0, ema_mode='price', ema_exit=False):
+def signals(x, window=14, min_price=1.0, min_rsi=3.0, div_confirm='none', min_adx=0, exit_mode='confirmed', ema_period=0, ema_mode='price', ema_exit=False, stop_pct=0.0):
     """Trailing regression divergence; no future pivots or retroactive signals."""
     z = x.copy()
     if ema_period:
@@ -124,20 +124,43 @@ def signals(x, window=14, min_price=1.0, min_rsi=3.0, div_confirm='none', min_ad
     z['sig'] = np.select([buy & sell, buy, sell], ['관망(충돌)', '매수', '매도'], default='관망')
     z['candidate_sig'] = z.sig.copy()
     z['reason'] = (z.buy_reason+' / '+z.sell_reason).str.strip(' /')
-    last_signal = None
-    states = []
-    for i in range(len(z)):
-        signal = z.sig.iloc[i]
-        if signal in ('매수', '매도'):
-            if signal == last_signal:
-                z.loc[z.index[i], 'sig'] = '관망'
-                z.loc[z.index[i], 'reason'] = f'동일 {signal} 조건 반복 · 새 신호 없음'
-            else:
-                last_signal = signal
-        states.append('매수 이후' if last_signal == '매수' else '매도 이후' if last_signal == '매도' else '신호 대기')
-    z['signal_state'] = states
+    z = sequence_signals(z, stop_pct=stop_pct)
     z['confirmed_at'] = z.time+pd.Timedelta(days=1)
     z['div_state'] = np.select([z.bull_state,z.bear_state],['상승 다이버전스(매수 방향)','하락 다이버전스(매도 방향)'],default='없음')
+    return z
+
+
+def sequence_signals(z, stop_pct=0.0, slip=0.0003):
+    """Alternate raw events; daily-close stop anchored to next-open simulated entry."""
+    z = z.reset_index(drop=True).copy()
+    last_signal = None; entry_price = None
+    states = []; emitted = []; anchors = []; stops = []; triggers = []
+    for i in range(len(z)):
+        row = z.iloc[i]
+        # Yesterday's confirmed signal fills at today's open in the simulation.
+        if i > 0:
+            if emitted[-1] == '매수':
+                entry_price = float(row.open)*(1+slip)
+            elif emitted[-1] == '매도':
+                entry_price = None
+        stop_line = entry_price*(1-stop_pct/100) if entry_price is not None and stop_pct > 0 else np.nan
+        hit = entry_price is not None and stop_pct > 0 and float(row.close) <= stop_line
+        signal = '매도' if hit else row.candidate_sig
+        if hit:
+            z.loc[i, 'reason'] = f'일봉 종가 {stop_pct:g}% 손절 · 모의 매수가 ₩{entry_price:,.0f} · 손절 기준 ₩{stop_line:,.0f}'
+        if signal in ('매수', '매도'):
+            if signal == last_signal:
+                signal = '관망'
+                z.loc[i, 'reason'] = f'동일 {last_signal} 조건 반복 · 새 신호 없음'
+            else:
+                last_signal = signal
+        z.loc[i, 'sig'] = signal
+        emitted.append(signal)
+        states.append('매수 이후' if last_signal == '매수' else '매도 이후' if last_signal == '매도' else '신호 대기')
+        anchors.append(entry_price if entry_price is not None else np.nan)
+        stops.append(stop_line); triggers.append(bool(hit and signal == '매도'))
+    z['signal_state'] = states
+    z['sim_entry_price'] = anchors; z['stop_price'] = stops; z['stop_trigger'] = triggers
     return z
 
 
@@ -239,6 +262,7 @@ def main():
             st.caption(f"추가 지표: EMA({selected['ema_period']}) · 종가가 EMA 위일 때만 기존 매수 허용 · 종가 하향돌파 추가 매도")
         else:
             st.caption('EMA 추가 실험에서 BTC 수익률이 감소하여 기본 조건에서는 적용하지 않습니다. 수동 조건에서 사용할 수 있습니다.')
+        st.caption('손절: 확정 일봉 종가 ≤ 모의 매수가 × 90%이면 매도. 기존 매도 조건은 유지하며 손절을 우선합니다. 모의 매수가는 매수 신호 다음 일봉 시가에 슬리피지 0.03%를 반영한 가격으로, 실제 계좌 매수가와 다릅니다.')
         use_ema=st.checkbox('수동 조건: EMA(50) 매수 필터 및 하향돌파 매도',value=True)
         window=st.number_input('다이버전스 추세 비교 일봉 수',min_value=5,max_value=60,value=14)
         c1,c2=st.columns(2)
@@ -252,7 +276,7 @@ def main():
         closed=closed_candles(raw)
         if len(closed) < max(60,int(window)+14):
             st.warning('지표 계산에 필요한 확정 일봉이 부족합니다.'); return
-        z=active_signals(indicators(closed),market) if mode=='검증 후 선택한 조건' else signals(indicators(closed),int(window),float(min_price),float(min_rsi),ema_period=50 if use_ema else 0,ema_exit=use_ema)
+        z=active_signals(indicators(closed),market) if mode=='검증 후 선택한 조건' else signals(indicators(closed),int(window),float(min_price),float(min_rsi),ema_period=50 if use_ema else 0,ema_exit=use_ema,stop_pct=10.0)
         last=z.iloc[-1]; current=raw.iloc[-1]
         checked_at=pd.Timestamp.now(tz='Asia/Seoul')
         st.caption(f'4시간 자동 모니터링 · 이번 확인: {checked_at:%Y-%m-%d %H:%M} KST · 다음 확인: {checked_at+pd.Timedelta(hours=4):%m-%d %H:%M} KST')
@@ -267,6 +291,7 @@ def main():
         a.metric('최근 조회 가격',f'₩{current.close:,.0f}')
         b.metric('확정 일봉 신호',last.sig)
         c.metric('최근 신호 상태',last.signal_state)
+        st.caption('일봉 종가 10% 손절 적용 · 마감 후 4시간 모니터링에서 확인 · 실제 손실을 10% 이내로 보장하지 않습니다.')
         st.info(f"판단 일봉: {last.time:%Y-%m-%d} · 신호 확정: {last.confirmed_at:%Y-%m-%d %H:%M} KST\n\n근거: {last.reason or '새로운 매매 조건이 없습니다.'}")
         st.caption(f'업비트 일봉은 한국시간 09:00에 마감합니다. 진행 중인 일봉은 신호와 백테스트에서 제외됩니다. 최근 조회 캔들 시작: {current.time:%Y-%m-%d %H:%M} KST · 가격은 5분 캐시 또는 새로고침으로 갱신됩니다.')
         days={'1개월':30,'3개월':90,'6개월':180,'1년':365,'2년':730}[period]
